@@ -12,17 +12,19 @@ export class GameController {
   private chess: Chess;
 
   constructor(fen?: string) {
-    this.chess = fen ? new Chess(fen) : new Chess();
+    this.chess = new Chess();
+    if (fen) {
+      this.loadFen(fen);
+    }
   }
 
   /**
    * Inicia um novo jogo, opcionalmente a partir de uma posição FEN.
    */
   newGame(fen?: string): void {
+    this.chess = new Chess();
     if (fen) {
-      this.chess = new Chess(fen);
-    } else {
-      this.chess = new Chess();
+      this.loadFen(fen);
     }
   }
 
@@ -157,9 +159,15 @@ export class GameController {
 
   /**
    * Carrega uma posição a partir de uma string FEN.
+   * Retorna true se a FEN for válida e carregada com sucesso; false se for inválida.
    */
-  loadFen(fen: string): void {
-    this.chess.load(fen);
+  loadFen(fen: string): boolean {
+    try {
+      this.chess.load(fen);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**

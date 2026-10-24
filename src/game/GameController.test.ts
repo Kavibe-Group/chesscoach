@@ -124,4 +124,19 @@ describe('GameController (Fase 0 - Andaime e núcleo de regras)', () => {
     expect(e2Moves.length).toBe(2); // e3 e e4
     expect(e2Moves.map(m => m.to).sort()).toEqual(['e3', 'e4']);
   });
+
+  it('BUG-09: trata FEN inválida sem lançar exceção não tratada', () => {
+    // loadFen deve retornar false e não explodir
+    const result = controller.loadFen('fen_totalmente_invalida_123');
+    expect(result).toBe(false);
+
+    // Construtor com FEN inválida deve usar posição inicial segura sem explodir
+    expect(() => new GameController('invalida')).not.toThrow();
+    const safeController = new GameController('invalida');
+    expect(safeController.getFen()).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+
+    // newGame com FEN inválida
+    expect(() => controller.newGame('invalida')).not.toThrow();
+    expect(controller.getFen()).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  });
 });

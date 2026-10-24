@@ -97,8 +97,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/game/GameController.ts`
 - **Como reproduzir:** Passar uma string FEN inválida para `loadFen()`. O `chess.js` lança exceção não capturada, travando o fluxo.
 - **Causa provável:** Ausência de bloco `try...catch` defensivo em `loadFen()` e no construtor de `GameController`.
-- **Teste de regressão:** `src/game/GameController.test.ts`
-- **Status:** Aberto
+- **Teste de regressão:** `src/game/GameController.test.ts` (`BUG-09: trata FEN inválida sem lançar exceção não tratada`)
+- **Status:** Resolvido (commit fix(BUG-09))
 
 ---
 
