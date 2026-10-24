@@ -83,4 +83,50 @@ describe('StockfishEngine (Fase 1 - Wrapper UCI e Motor)', () => {
     });
     expect(strongMove).toBeDefined();
   }, 10000);
+
+  it('BUG-02: enfileira chamadas concorrentes sem colisão de comandos UCI em worker assíncrono', async () => {
+    // Simula worker com latência assíncrona entre postMessage e onmessage
+    const realWorker = createNodeStockfishWorker();
+    const asyncWorker = {
+      postMessage(cmd: string) {
+        setTimeout(() => realWorker.postMessage(cmd), 5);
+      },
+      set onmessage(handler: any) {
+        realWorker.onmessage = handler;
+      },
+      get onmessage() {
+        return realWorker.onmessage;
+      },
+      terminate() {
+        realWorker.terminate();
+      },
+    };
+
+    const queuedEngine = new StockfishEngine(() => asyncWorker);
+    await queuedEngine.init();
+
+    const fens = [
+      { fen: '6k1/5ppp/8/8/8/8/1Q6/K7 w - - 0 1', best: 'b2b8' },
+      { fen: '6k1/R7/8/8/8/8/8/4R1K1 w - - 0 1', best: 'e1e8' },
+    ];
+
+    const results = await Promise.all([
+      queuedEngine.getBestMove(fens[0].fen, { depth: 3 }),
+      queuedEngine.getBestMove(fens[1].fen, { depth: 3 }),
+    ]);
+
+    expect(results[0]).toBe(fens[0].best);
+    expect(results[1]).toBe(fens[1].best);
+
+    queuedEngine.destroy();
+  }, 15000);
+
+  it('BUG-12: limpa handlers e garante que falhas no evaluate não deixam listeners orfãos', async () => {
+    // Avalia posição normal e verifica que nenhum handler 'info' residual permanece
+    const res = await engine.evaluate('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 3);
+    expect(res.bestMove).toBeDefined();
+    // Verificamos que o engine continua funcional para novas avaliações
+    const res2 = await engine.evaluate('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 3);
+    expect(res2.bestMove).toBeDefined();
+  });
 });

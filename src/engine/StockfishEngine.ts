@@ -105,9 +105,21 @@ export class StockfishEngine {
   private ready = false;
   private currentConfig: EngineConfig | null = null;
   private workerFactory?: () => IWorker;
+  private queue: Promise<any> = Promise.resolve();
 
   constructor(workerFactory?: () => IWorker) {
     this.workerFactory = workerFactory;
+  }
+
+  /**
+   * Enfileira chamadas assíncronas para garantir execução estritamente sequencial
+   * no worker UCI, prevenindo colisão de comandos concorrentes.
+   */
+  private runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = () => fn();
+    const next = this.queue.then(run, run);
+    this.queue = next.catch(() => {});
+    return next;
   }
 
   // -----------------------------------------------------------------------
@@ -248,24 +260,26 @@ export class StockfishEngine {
    * Configura a força do engine para o modo oponente.
    */
   async setStrength(config: EngineConfig): Promise<void> {
-    this.ensureReady();
+    return this.runExclusive(async () => {
+      this.ensureReady();
 
-    if (config.limitStrength && config.uciElo !== undefined) {
-      this.send('setoption name UCI_LimitStrength value true');
-      this.send(`setoption name UCI_Elo value ${config.uciElo}`);
-    } else {
-      // Desativa limitação de Elo ao usar Skill Level
-      this.send('setoption name UCI_LimitStrength value false');
-    }
+      if (config.limitStrength && config.uciElo !== undefined) {
+        this.send('setoption name UCI_LimitStrength value true');
+        this.send(`setoption name UCI_Elo value ${config.uciElo}`);
+      } else {
+        // Desativa limitação de Elo ao usar Skill Level
+        this.send('setoption name UCI_LimitStrength value false');
+      }
 
-    if (config.skillLevel !== undefined) {
-      this.send(`setoption name Skill Level value ${config.skillLevel}`);
-    }
+      if (config.skillLevel !== undefined) {
+        this.send(`setoption name Skill Level value ${config.skillLevel}`);
+      }
 
-    this.currentConfig = { ...config };
+      this.currentConfig = { ...config };
 
-    // Garante que o engine processou as opções
-    await this.sendAndWait('isready', /^readyok$/);
+      // Garante que o engine processou as opções
+      await this.sendAndWait('isready', /^readyok$/);
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -284,34 +298,36 @@ export class StockfishEngine {
     fen: string,
     config?: { depth?: number; moveTime?: number },
   ): Promise<string> {
-    this.ensureReady();
+    return this.runExclusive(async () => {
+      this.ensureReady();
 
-    this.send(`position fen ${fen}`);
+      this.send(`position fen ${fen}`);
 
-    const depth = config?.depth ?? this.currentConfig?.depth;
-    const moveTime = config?.moveTime ?? this.currentConfig?.moveTime;
+      const depth = config?.depth ?? this.currentConfig?.depth;
+      const moveTime = config?.moveTime ?? this.currentConfig?.moveTime;
 
-    const bestMovePromise = this.waitFor(/^bestmove\s/);
+      const bestMovePromise = this.waitFor(/^bestmove\s/);
 
-    if (moveTime !== undefined) {
-      this.send(`go movetime ${moveTime}`);
-    } else if (depth !== undefined) {
-      this.send(`go depth ${depth}`);
-    } else {
-      // Padrão razoável para modo oponente
-      this.send('go movetime 1000');
-    }
+      if (moveTime !== undefined) {
+        this.send(`go movetime ${moveTime}`);
+      } else if (depth !== undefined) {
+        this.send(`go depth ${depth}`);
+      } else {
+        // Padrão razoável para modo oponente
+        this.send('go movetime 1000');
+      }
 
-    const bestMoveLine = await bestMovePromise;
-    const match = bestMoveLine.match(/^bestmove\s(\S+)/);
+      const bestMoveLine = await bestMovePromise;
+      const match = bestMoveLine.match(/^bestmove\s(\S+)/);
 
-    if (!match) {
-      throw new Error(
-        `Stockfish: não foi possível extrair bestmove de "${bestMoveLine}"`,
-      );
-    }
+      if (!match) {
+        throw new Error(
+          `Stockfish: não foi possível extrair bestmove de "${bestMoveLine}"`,
+        );
+      }
 
-    return match[1];
+      return match[1];
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -336,92 +352,107 @@ export class StockfishEngine {
     fen: string,
     depth: number = DEFAULT_EVAL_DEPTH,
   ): Promise<EngineEvaluation> {
-    this.ensureReady();
+    return this.runExclusive(async () => {
+      this.ensureReady();
 
-    // Salva configuração atual
-    const savedConfig = this.currentConfig ? { ...this.currentConfig } : null;
+      // Salva configuração atual
+      const savedConfig = this.currentConfig ? { ...this.currentConfig } : null;
 
-    // Força máxima para análise
-    this.send('setoption name Skill Level value 20');
-    this.send('setoption name UCI_LimitStrength value false');
-    await this.sendAndWait('isready', /^readyok$/);
+      let infoHandler: ((line: string) => void) | null = null;
+      try {
+        // Força máxima para análise
+        this.send('setoption name Skill Level value 20');
+        this.send('setoption name UCI_LimitStrength value false');
+        await this.sendAndWait('isready', /^readyok$/);
 
-    this.send(`position fen ${fen}`);
+        this.send(`position fen ${fen}`);
 
-    // Variáveis para capturar a melhor info durante a busca
-    let lastScore = 0;
-    let lastMate: number | null = null;
-    let lastPv: string[] = [];
-    let lastDepth = 0;
+        // Variáveis para capturar a melhor info durante a busca
+        let lastScore = 0;
+        let lastMate: number | null = null;
+        let lastPv: string[] = [];
+        let lastDepth = 0;
 
-    // Registra handler para coletar linhas "info" durante a busca
-    const infoHandler = (line: string) => {
-      if (!line.startsWith('info ') || !line.includes(' pv ')) {
-        return;
+        // Registra handler para coletar linhas "info" durante a busca
+        infoHandler = (line: string) => {
+          if (!line.startsWith('info ') || !line.includes(' pv ')) {
+            return;
+          }
+
+          // Parse depth
+          const depthMatch = line.match(/\bdepth\s(\d+)/);
+          if (depthMatch) {
+            lastDepth = parseInt(depthMatch[1], 10);
+          }
+
+          // Parse score
+          const cpMatch = line.match(/\bscore cp\s(-?\d+)/);
+          if (cpMatch) {
+            lastScore = parseInt(cpMatch[1], 10);
+            lastMate = null;
+          }
+
+          const mateMatch = line.match(/\bscore mate\s(-?\d+)/);
+          if (mateMatch) {
+            lastMate = parseInt(mateMatch[1], 10);
+            // Quando é mate, usamos um score alto para indicar a direção
+            lastScore = lastMate > 0 ? 100_000 : -100_000;
+          }
+
+          // Parse PV (tudo depois de " pv ")
+          const pvMatch = line.match(/\bpv\s(.+)$/);
+          if (pvMatch) {
+            lastPv = pvMatch[1].trim().split(/\s+/);
+          }
+        };
+
+        this.messageHandlers.push(infoHandler);
+
+        // Inicia busca registrando espera por bestmove antes de enviar comando
+        const bestMovePromise = this.waitFor(/^bestmove\s/);
+        this.send(`go depth ${depth}`);
+        const bestMoveLine = await bestMovePromise;
+
+        // Extrai bestmove
+        const bestMoveMatch = bestMoveLine.match(/^bestmove\s(\S+)/);
+        if (!bestMoveMatch) {
+          throw new Error(
+            `Stockfish: não foi possível extrair bestmove de "${bestMoveLine}"`,
+          );
+        }
+
+        const bestMove = bestMoveMatch[1];
+
+        return {
+          score: lastScore,
+          mate: lastMate,
+          bestMove,
+          pv: lastPv.length > 0 ? lastPv : [bestMove],
+          depth: lastDepth,
+        };
+      } finally {
+        if (infoHandler) {
+          const handlerIdx = this.messageHandlers.indexOf(infoHandler);
+          if (handlerIdx !== -1) {
+            this.messageHandlers.splice(handlerIdx, 1);
+          }
+        }
+        // Restaura configuração anterior de forma defensiva
+        if (savedConfig) {
+          if (savedConfig.limitStrength && savedConfig.uciElo !== undefined) {
+            this.send('setoption name UCI_LimitStrength value true');
+            this.send(`setoption name UCI_Elo value ${savedConfig.uciElo}`);
+          } else {
+            this.send('setoption name UCI_LimitStrength value false');
+          }
+          if (savedConfig.skillLevel !== undefined) {
+            this.send(`setoption name Skill Level value ${savedConfig.skillLevel}`);
+          }
+          this.currentConfig = { ...savedConfig };
+          await this.sendAndWait('isready', /^readyok$/);
+        }
       }
-
-      // Parse depth
-      const depthMatch = line.match(/\bdepth\s(\d+)/);
-      if (depthMatch) {
-        lastDepth = parseInt(depthMatch[1], 10);
-      }
-
-      // Parse score
-      const cpMatch = line.match(/\bscore cp\s(-?\d+)/);
-      if (cpMatch) {
-        lastScore = parseInt(cpMatch[1], 10);
-        lastMate = null;
-      }
-
-      const mateMatch = line.match(/\bscore mate\s(-?\d+)/);
-      if (mateMatch) {
-        lastMate = parseInt(mateMatch[1], 10);
-        // Quando é mate, usamos um score alto para indicar a direção
-        lastScore = lastMate > 0 ? 100_000 : -100_000;
-      }
-
-      // Parse PV (tudo depois de " pv ")
-      const pvMatch = line.match(/\bpv\s(.+)$/);
-      if (pvMatch) {
-        lastPv = pvMatch[1].trim().split(/\s+/);
-      }
-    };
-
-    this.messageHandlers.push(infoHandler);
-
-    // Inicia busca registrando espera por bestmove antes de enviar comando
-    const bestMovePromise = this.waitFor(/^bestmove\s/);
-    this.send(`go depth ${depth}`);
-    const bestMoveLine = await bestMovePromise;
-
-    // Remove o handler de info
-    const handlerIdx = this.messageHandlers.indexOf(infoHandler);
-    if (handlerIdx !== -1) {
-      this.messageHandlers.splice(handlerIdx, 1);
-    }
-
-    // Extrai bestmove
-    const bestMoveMatch = bestMoveLine.match(/^bestmove\s(\S+)/);
-    if (!bestMoveMatch) {
-      throw new Error(
-        `Stockfish: não foi possível extrair bestmove de "${bestMoveLine}"`,
-      );
-    }
-
-    const bestMove = bestMoveMatch[1];
-
-    // Restaura configuração anterior
-    if (savedConfig) {
-      await this.setStrength(savedConfig);
-    }
-
-    return {
-      score: lastScore,
-      mate: lastMate,
-      bestMove,
-      pv: lastPv.length > 0 ? lastPv : [bestMove],
-      depth: lastDepth,
-    };
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -441,10 +472,12 @@ export class StockfishEngine {
    * Reseta o estado do engine para uma nova partida.
    */
   async newGame(): Promise<void> {
-    this.ensureReady();
+    return this.runExclusive(async () => {
+      this.ensureReady();
 
-    this.send('ucinewgame');
-    await this.sendAndWait('isready', /^readyok$/);
+      this.send('ucinewgame');
+      await this.sendAndWait('isready', /^readyok$/);
+    });
   }
 
   // -----------------------------------------------------------------------

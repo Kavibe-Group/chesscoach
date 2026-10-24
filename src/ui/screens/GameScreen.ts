@@ -40,7 +40,8 @@ export class GameScreen {
   private feedbackCard: FeedbackCard | null = null;
   private moveList: MoveList | null = null;
   private clockView: ClockView | null = null;
-  private engine: StockfishEngine;
+  private opponentEngine: StockfishEngine;
+  private analystEngine: StockfishEngine;
   private playerColor: 'white' | 'black';
 
   // Análise e estatísticas da partida
@@ -58,13 +59,17 @@ export class GameScreen {
     const settings = getSettings();
     this.playerColor = settings.playerColor;
 
-    this.engine = new StockfishEngine();
+    this.opponentEngine = new StockfishEngine();
+    this.analystEngine = new StockfishEngine();
     this.init();
   }
 
   private async init(): Promise<void> {
     this.renderLayout();
-    await this.engine.init();
+    await Promise.all([
+      this.opponentEngine.init(),
+      this.analystEngine.init(),
+    ]);
 
     // Configura força do motor oponente
     const profile = getProfile();
@@ -74,7 +79,10 @@ export class GameScreen {
       : (profile?.estimatedElo ?? 1000);
 
     const config = eloToEngineConfig(targetElo);
-    await this.engine.setStrength(config);
+    await this.opponentEngine.setStrength(config);
+
+    // Motor analista fica configurado para análise máxima
+    await this.analystEngine.setStrength({ skillLevel: 20, limitStrength: false });
 
     // Avalia posição inicial para o primeiro lance do jogador
     await this.cachePositionEval();
@@ -207,7 +215,7 @@ export class GameScreen {
   private async cachePositionEval(): Promise<void> {
     try {
       this.lastFenBeforePlayerMove = this.game.getFen();
-      const evalResult = await this.engine.evaluate(this.lastFenBeforePlayerMove, 12);
+      const evalResult = await this.analystEngine.evaluate(this.lastFenBeforePlayerMove, 12);
 
       // Converte a pontuação para a perspectiva do jogador
       const isPlayerTurn = (this.game.turn() === 'w' && this.playerColor === 'white') ||
@@ -268,7 +276,7 @@ export class GameScreen {
   private async analyzePlayerMove(event: MoveEvent): Promise<MoveAnalysis | null> {
     try {
       const fenAfter = this.game.getFen();
-      const evalAfterEngine = await this.engine.evaluate(fenAfter, 12);
+      const evalAfterEngine = await this.analystEngine.evaluate(fenAfter, 12);
 
       // Após o lance do jogador, é a vez do adversário (motor).
       // A avaliação do Stockfish vem da perspectiva do lado que move (adversário).
@@ -347,7 +355,7 @@ export class GameScreen {
 
     try {
       const fen = this.game.getFen();
-      const bestMove = await this.engine.getBestMove(fen, { moveTime: 800 });
+      const bestMove = await this.opponentEngine.getBestMove(fen, { moveTime: 800 });
 
       const from = bestMove.substring(0, 2);
       const to = bestMove.substring(2, 4);
@@ -492,7 +500,8 @@ export class GameScreen {
   destroy(): void {
     this.board?.destroy();
     this.clockView?.destroy();
-    this.engine.destroy();
+    this.opponentEngine.destroy();
+    this.analystEngine.destroy();
     this.container.innerHTML = '';
   }
 }

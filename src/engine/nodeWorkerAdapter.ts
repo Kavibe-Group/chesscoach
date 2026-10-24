@@ -16,8 +16,14 @@ export function createNodeStockfishWorker(): IWorker {
   }
 
   const req = createRequireFn(import.meta.url);
+  const sf = req('stockfish');
+  const enginePath = sf.findEngine('asm');
+  if (req.cache && req.cache[enginePath]) {
+    delete req.cache[enginePath];
+  }
+
   let listener: ((line: string) => void) | null = null;
-  const engine = req('stockfish')('lite-single', (line: string) => {
+  const engine = sf('asm', (line: string) => {
     if (listener) {
       listener(line);
     }
