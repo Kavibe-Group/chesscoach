@@ -1,10 +1,15 @@
 /**
  * Módulo de análise de lances.
- * Classifica lances do jogador e gera feedback baseado na avaliação do Stockfish.
+ * Classifica lances do jogador e gera feedback baseado na avaliação do Stockfish
+ * e fatos verificáveis extraídos via chess.js.
  *
- * Toda a lógica de avaliação vem do Stockfish — nenhuma avaliação personalizada é implementada.
- * Toda a lógica de regras vem do chess.js — nenhuma regra personalizada é implementada.
+ * Toda a lógica de regras vem do chess.js.
+ * Toda a lógica de avaliação vem do Stockfish.
+ * Explicações geradas somente a partir de fatos verificáveis (lista fechada).
  */
+
+import { Chess } from 'chess.js';
+import type { Square, PieceSymbol } from 'chess.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,7 +35,7 @@ export interface MoveAnalysis {
   bestMove: string;
   /** Melhor lance em SAN */
   bestMoveSan: string;
-  /** Explicação em PT-BR */
+  /** Explicação em PT-BR (lista fechada de padrões verificáveis) */
   explanation: string;
   /** Lance jogado em SAN */
   playerMove: string;
@@ -82,38 +87,38 @@ const MATE_CP_LOSS = 9999;
 /** Limiar de posição já decidida */
 const DECIDED_POSITION_THRESHOLD = 500;
 
+const PIECE_NAMES_PT: Record<PieceSymbol, string> = {
+  p: 'o peão',
+  n: 'o cavalo',
+  b: 'o bispo',
+  r: 'a torre',
+  q: 'a dama',
+  k: 'o rei',
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Retorna o rótulo de exibição (PT-BR) para uma qualidade de lance.
- */
 export function getQualityLabel(quality: MoveQuality): string {
   return QUALITY_CONFIG[quality].label;
 }
 
-/**
- * Verifica se um valor de mate é favorável ao jogador.
- * Mate positivo → jogador dá mate; mate negativo → adversário dá mate.
- */
 function isMateFavorable(mate: number | null): boolean {
   return mate !== null && mate > 0;
 }
 
-/**
- * Verifica se um valor de mate é desfavorável ao jogador.
- */
 function isMateUnfavorable(mate: number | null): boolean {
   return mate !== null && mate < 0;
 }
 
-/**
- * Calcula a perda em centipeões do lance jogado.
- */
 function calculateCpLoss(ctx: PositionContext): number {
-  // Mate handling —
-  // Se o jogador tinha mate e perdeu
+  // Se jogou o melhor lance exato do motor, perda é sempre 0
+  if (ctx.playerMoveUci === ctx.bestMoveUci) {
+    return 0;
+  }
+
+  // Mate handling: jogador tinha mate favorável e perdeu
   if (isMateFavorable(ctx.mateBefore) && !isMateFavorable(ctx.mateAfter)) {
     return MATE_CP_LOSS;
   }
@@ -123,7 +128,6 @@ function calculateCpLoss(ctx: PositionContext): number {
     return MATE_CP_LOSS;
   }
 
-  // Se o jogador jogou o melhor lance (ou dentro de 10cp)
   const rawLoss = ctx.evalBefore - ctx.evalAfter;
   if (rawLoss <= 10) {
     return 0;
@@ -132,9 +136,6 @@ function calculateCpLoss(ctx: PositionContext): number {
   return rawLoss;
 }
 
-/**
- * Classifica a qualidade do lance com base na perda de centipeões.
- */
 function classifyMove(cpLoss: number): MoveQuality {
   if (cpLoss <= 10) return 'excelente';
   if (cpLoss <= 30) return 'bom';
@@ -143,9 +144,6 @@ function classifyMove(cpLoss: number): MoveQuality {
   return 'erro_grave';
 }
 
-/**
- * Qualidades ordenadas por severidade (menor para maior).
- */
 const SEVERITY_ORDER: MoveQuality[] = [
   'excelente',
   'bom',
@@ -154,47 +152,134 @@ const SEVERITY_ORDER: MoveQuality[] = [
   'erro_grave',
 ];
 
-/**
- * Reduz a severidade em um nível (para posições já decididas).
- */
 function downgradeSeverity(quality: MoveQuality): MoveQuality {
   const idx = SEVERITY_ORDER.indexOf(quality);
   if (idx <= 0) return SEVERITY_ORDER[0]!;
   return SEVERITY_ORDER[idx - 1]!;
 }
 
-/**
- * Gera a explicação em PT-BR para o lance analisado.
- */
-function generateExplanation(
+// ---------------------------------------------------------------------------
+// Verifiable Pattern Detection (Lista Fechada da Seção 5)
+// ---------------------------------------------------------------------------
+
+function detectPatternExplanation(
   quality: MoveQuality,
   cpLoss: number,
   ctx: PositionContext,
 ): string {
-  // --- Detecções específicas de mate ---
+  const opponentColor = ctx.playerColor === 'w' ? 'b' : 'w';
 
-  // Mate perdido: jogador tinha mate favorável e perdeu
+  // 1. Mate perdido: havia mate em N e ele não jogou
   if (isMateFavorable(ctx.mateBefore) && !isMateFavorable(ctx.mateAfter)) {
     return `Havia mate em ${ctx.mateBefore} com ${ctx.bestMoveSan}, mas você não jogou!`;
   }
 
-  // Mate permitido: o lance permite mate pelo adversário
+  // 2. Mate permitido: seu lance permite mate pelo adversário
   if (isMateUnfavorable(ctx.mateAfter) && !isMateUnfavorable(ctx.mateBefore)) {
     return 'Erro grave! Seu lance permite mate pelo adversário.';
   }
 
-  // --- Templates genéricos ---
-  switch (quality) {
-    case 'excelente':
+  // Para lances com erro (imprecisão, erro, erro_grave)
+  if (quality === 'imprecisao' || quality === 'erro' || quality === 'erro_grave') {
+    try {
+      const chessBefore = new Chess(ctx.fenBefore);
+      const chessAfter = new Chess(ctx.fenAfter);
+
+      // 3. Peça deixada desprotegida e capturável (e o lance do motor a punia)
+      // Verifica a resposta recomendada pelo motor na variante principal
+      if (ctx.pvBefore && ctx.pvBefore.length > 1) {
+        const replyUci = ctx.pvBefore[1];
+        if (replyUci && replyUci.length >= 4) {
+          const replyTo = replyUci.substring(2, 4) as Square;
+          const pieceAtTarget = chessAfter.get(replyTo);
+
+          if (pieceAtTarget && pieceAtTarget.color === ctx.playerColor) {
+            const defenders = chessAfter.attackers(replyTo, ctx.playerColor);
+            if (defenders.length === 0) {
+              const pieceName = PIECE_NAMES_PT[pieceAtTarget.type] || 'sua peça';
+              return `Peça desprotegida! O seu lance deixou ${pieceName} em ${replyTo} sem defesa.`;
+            }
+          }
+        }
+      }
+
+      // 4. Captura gratuita perdida (havia peça adversária pendurada e ele não pegou)
+      const bestMoveFrom = ctx.bestMoveUci.substring(0, 2) as Square;
+      const bestMoveTo = ctx.bestMoveUci.substring(2, 4) as Square;
+      const targetPieceBefore = chessBefore.get(bestMoveTo);
+
+      if (
+        targetPieceBefore &&
+        targetPieceBefore.color === opponentColor &&
+        ctx.playerMoveUci !== ctx.bestMoveUci
+      ) {
+        const enemyDefenders = chessBefore.attackers(bestMoveTo, opponentColor);
+        if (enemyDefenders.length === 0) {
+          const pieceName = PIECE_NAMES_PT[targetPieceBefore.type] || 'a peça';
+          return `Captura gratuita perdida! Você podia capturar ${pieceName} em ${bestMoveTo} com ${ctx.bestMoveSan}.`;
+        }
+      }
+
+      // 5. Material perdido no lance (troca desfavorável imediata)
+      const playerTo = ctx.playerMoveUci.substring(2, 4) as Square;
+      const playerPieceAfter = chessAfter.get(playerTo);
+      if (playerPieceAfter && playerPieceAfter.color === ctx.playerColor) {
+        const enemyAttackers = chessAfter.attackers(playerTo, opponentColor);
+        const myDefenders = chessAfter.attackers(playerTo, ctx.playerColor);
+        if (enemyAttackers.length > 0 && myDefenders.length === 0 && cpLoss >= 100) {
+          const pieceName = PIECE_NAMES_PT[playerPieceAfter.type] || 'sua peça';
+          return `Material perdido! O seu lance colocou ${pieceName} em ${playerTo} onde pode ser capturada.`;
+        }
+      }
+    } catch {
+      // Em caso de erro na análise da posição, segue para o template genérico
+    }
+  }
+
+  // 6. Lance de desenvolvimento / segurança do rei na abertura (até lance 12, sem perda tática)
+  if (ctx.moveNumber <= 12 && cpLoss <= 30) {
+    if (ctx.playerMoveSan === 'O-O' || ctx.playerMoveSan === 'O-O-O') {
+      return 'Bom lance de segurança do rei: roque realizado.';
+    }
+
+    // Lance de cavalo ou bispo saindo da fileira inicial
+    const fromSquare = ctx.playerMoveUci.substring(0, 2);
+    const startRank = ctx.playerColor === 'w' ? '1' : '8';
+    if (
+      fromSquare[1] === startRank &&
+      (ctx.playerMoveSan.startsWith('N') || ctx.playerMoveSan.startsWith('B'))
+    ) {
+      return 'Bom lance de desenvolvimento na abertura.';
+    }
+  }
+
+  // 7. Lance que era o melhor ou defendia a ameaça concreta da posição
+  if (quality === 'excelente' || quality === 'bom') {
+    try {
+      const chessBefore = new Chess(ctx.fenBefore);
+      if (chessBefore.isCheck()) {
+        return 'Excelente! Defendeu o rei em xeque.';
+      }
+    } catch {
+      // Fallback
+    }
+
+    if (ctx.playerMoveUci === ctx.bestMoveUci || cpLoss <= 10) {
       return 'Excelente! Este era o melhor lance.';
-    case 'bom':
-      return 'Bom lance. Mantém a posição.';
+    }
+    return 'Bom lance. Mantém a posição.';
+  }
+
+  // 8. Template genérico e honesto (fora dos padrões acima)
+  switch (quality) {
     case 'imprecisao':
       return `Imprecisão. O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`;
     case 'erro':
       return `Erro. O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`;
     case 'erro_grave':
       return `Erro grave! O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`;
+    default:
+      return 'Bom lance.';
   }
 }
 
@@ -202,19 +287,20 @@ function generateExplanation(
 // Main
 // ---------------------------------------------------------------------------
 
-/**
- * Analisa a qualidade de um lance jogado e retorna informações detalhadas.
- */
 export function analyzeMoveQuality(ctx: PositionContext): MoveAnalysis {
   const cpLoss = calculateCpLoss(ctx);
   let quality = classifyMove(cpLoss);
 
-  // Se a posição já estava decidida (|evalBefore| > 500), reduz a severidade em um nível
-  if (Math.abs(ctx.evalBefore) > DECIDED_POSITION_THRESHOLD) {
+  // Se a posição já estava decidida (|evalBefore| > 500) e NÃO envolve mate perdido/permitido,
+  // reduz a severidade em um nível
+  if (
+    Math.abs(ctx.evalBefore) > DECIDED_POSITION_THRESHOLD &&
+    cpLoss !== MATE_CP_LOSS
+  ) {
     quality = downgradeSeverity(quality);
   }
 
-  const explanation = generateExplanation(quality, cpLoss, ctx);
+  const explanation = detectPatternExplanation(quality, cpLoss, ctx);
   const config = QUALITY_CONFIG[quality];
 
   return {
