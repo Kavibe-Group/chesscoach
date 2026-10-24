@@ -456,8 +456,17 @@ export class GameScreen {
     }
   }
 
-  private handleNewGame(): void {
-    if (confirm('Deseja iniciar uma nova partida?')) {
+  public async handleNewGame(skipConfirm = false): Promise<void> {
+    if (skipConfirm || confirm('Deseja iniciar uma nova partida?')) {
+      this.engineMoveAborted = true;
+      this.opponentEngine.stop();
+      this.isEngineThinking = false;
+
+      await Promise.all([
+        this.opponentEngine.newGame(),
+        this.analystEngine.newGame(),
+      ]);
+
       this.game.newGame();
       this.analyzedMoves = [];
       this.gameCompleted = false;
@@ -466,10 +475,11 @@ export class GameScreen {
       this.board?.setInteractive(true);
       this.moveList?.clear();
       this.feedbackCard?.renderEmpty();
-      this.cachePositionEval();
+      this.updateTurnIndicator(this.playerColor === 'white' ? 'Sua vez' : 'Motor pensando...');
+      await this.cachePositionEval();
 
       if (this.playerColor === 'black') {
-        this.triggerEngineMove();
+        await this.triggerEngineMove();
       }
     }
   }

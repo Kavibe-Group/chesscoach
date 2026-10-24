@@ -116,9 +116,9 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Severidade:** P2
 - **Onde:** `src/ui/screens/GameScreen.ts`
 - **Como reproduzir:** Clicar em "Nova Partida" no meio de uma partida. O motor não recebia `ucinewgame` nem abortava a busca anterior em andamento.
-- **Causa provável:** Ausência de `this.engine.stop()` e `this.engine.newGame()` no método `handleNewGame`.
-- **Teste de regressão:** `src/e2e.test.ts`
-- **Status:** Aberto
+- **Causa provável:** Ausência de `this.opponentEngine.stop()` e `this.opponentEngine.newGame()` no método `handleNewGame`.
+- **Teste de regressão:** `src/ui/screens/GameScreen.test.ts` (`BUG-11: interrompe busca e reseta ambos os motores com newGame ao reiniciar partida`)
+- **Status:** Resolvido (commit fix(BUG-11))
 
 ---
 

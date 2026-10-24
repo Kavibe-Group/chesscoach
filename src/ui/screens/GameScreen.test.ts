@@ -163,4 +163,28 @@ describe('GameScreen - BUG-01 (Fluxo de Tentar de Novo e Cancelamento)', () => {
 
     screen.destroy();
   });
+
+  it('BUG-11: interrompe busca e reseta ambos os motores com newGame ao reiniciar partida', async () => {
+    const container = createMockContainer();
+    const screen = new GameScreen(container, {
+      onGameOver: vi.fn(),
+      onExit: vi.fn(),
+    });
+
+    const stopSpy = vi.spyOn((screen as any).opponentEngine, 'stop').mockImplementation(() => {});
+    const oppNewGameSpy = vi.spyOn((screen as any).opponentEngine, 'newGame').mockResolvedValue(undefined);
+    const analystNewGameSpy = vi.spyOn((screen as any).analystEngine, 'newGame').mockResolvedValue(undefined);
+
+    (screen as any).isEngineThinking = true;
+
+    // Inicia nova partida
+    await screen.handleNewGame(true);
+
+    expect(stopSpy).toHaveBeenCalled();
+    expect(oppNewGameSpy).toHaveBeenCalled();
+    expect(analystNewGameSpy).toHaveBeenCalled();
+    expect((screen as any).isEngineThinking).toBe(false);
+
+    screen.destroy();
+  });
 });
