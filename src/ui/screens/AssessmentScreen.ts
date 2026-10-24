@@ -1,5 +1,7 @@
 import { GameController } from '../../game/GameController.js';
-import { ChessBoard } from '../ChessBoard.js';
+import { ChessBoard, type MoveEvent } from '../ChessBoard.js';
+import { StockfishEngine } from '../../engine/StockfishEngine.js';
+import { analyzeMoveQuality, type PositionContext } from '../../analysis/MoveAnalyzer.js';
 import {
   getPuzzlesForAssessment,
   checkPuzzleSolution,
@@ -24,6 +26,16 @@ export class AssessmentScreen {
   private startTime = 0;
   private puzzleAnswered = false;
 
+  // Fase de calibração contra o motor
+  public isCalibrationPhase = false;
+  public calibrationMovesCount = 0;
+  public calibrationTotalCpLoss = 0;
+  private opponentEngine: StockfishEngine | null = null;
+  private analystEngine: StockfishEngine | null = null;
+  private lastCalibrationEval: { score: number; mate: number | null; bestMove: string; pv: string[] } | null = null;
+  private lastFenBeforeCalibrationMove = '';
+  private isEngineThinking = false;
+
   constructor(container: HTMLElement, events: AssessmentScreenEvents) {
     this.container = container;
     this.events = events;
@@ -34,7 +46,7 @@ export class AssessmentScreen {
 
   private render(): void {
     if (this.currentIdx >= this.puzzles.length) {
-      this.renderSummary();
+      this.startCalibrationGame();
       return;
     }
 
@@ -146,19 +158,215 @@ export class AssessmentScreen {
     btnNext.style.display = 'block';
   }
 
-  private renderSummary(): void {
-    // Estimativa com calibração baseada nas respostas
+  // ---------------------------------------------------------------------------
+  // Etapa 2: Partida de Calibração real contra o motor
+  // ---------------------------------------------------------------------------
+
+  public async startCalibrationGame(): Promise<void> {
+    this.isCalibrationPhase = true;
+    this.calibrationMovesCount = 0;
+    this.calibrationTotalCpLoss = 0;
+    this.game = new GameController();
+
+    if (!this.opponentEngine) {
+      this.opponentEngine = new StockfishEngine();
+      this.analystEngine = new StockfishEngine();
+      await Promise.all([this.opponentEngine.init(), this.analystEngine.init()]);
+      await this.opponentEngine.setStrength({ skillLevel: 3, limitStrength: false });
+      await this.analystEngine.setStrength({ skillLevel: 20, limitStrength: false });
+    }
+
+    this.renderCalibrationLayout();
+    await this.cacheCalibrationPositionEval();
+  }
+
+  private renderCalibrationLayout(): void {
+    this.container.innerHTML = `
+      <div class="assessment-screen calibration">
+        <header class="screen-header">
+          <button type="button" class="btn btn-ghost" id="btn-cancel-calibration">← Cancelar</button>
+          <div class="progress-container">
+            <span class="progress-label">Etapa 2: Partida de Calibração (${this.calibrationMovesCount}/10 lances)</span>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${(this.calibrationMovesCount / 10) * 100}%"></div>
+            </div>
+          </div>
+        </header>
+
+        <div class="assessment-main">
+          <!-- Tabuleiro -->
+          <div class="board-column">
+            <div id="calibration-board-container" class="board-frame"></div>
+          </div>
+
+          <!-- Instruções de Calibração -->
+          <div class="side-column card">
+            <div class="assessment-info">
+              <span class="turn-indicator">Sua vez (Brancas)</span>
+              <h2 class="puzzle-title">Partida de Calibração</h2>
+              <p class="puzzle-instruction">
+                Jogue normalmente contra o motor. O Stockfish medirá sua perda média de centipeões (ACPL) real.
+              </p>
+            </div>
+
+            <div class="calibration-stats-box" style="margin: 1.5rem 0; padding: 1rem; background: var(--surface-2, #262421); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Lances avaliados:</span>
+                <strong id="calib-move-count">${this.calibrationMovesCount} / 10</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Perda média atual (ACPL):</span>
+                <strong id="calib-acpl-val">${this.calibrationMovesCount > 0 ? Math.round(this.calibrationTotalCpLoss / this.calibrationMovesCount) : 0} cp</strong>
+              </div>
+            </div>
+
+            <div class="assessment-actions">
+              <button type="button" class="btn btn-secondary btn-lg" id="btn-finish-calibration" style="${this.calibrationMovesCount >= 5 ? '' : 'display: none;'}">
+                Finalizar Calibração Agora →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const boardEl = this.container.querySelector<HTMLElement>('#calibration-board-container')!;
+    this.board = new ChessBoard(boardEl, this.game, 'white');
+
+    this.board.onMove(event => {
+      this.handleCalibrationPlayerMove(event);
+    });
+
+    this.container.querySelector('#btn-cancel-calibration')?.addEventListener('click', () => {
+      this.events.onCancel();
+    });
+
+    this.container.querySelector('#btn-finish-calibration')?.addEventListener('click', () => {
+      this.finishCalibrationGame();
+    });
+  }
+
+  private async cacheCalibrationPositionEval(): Promise<void> {
+    try {
+      this.lastFenBeforeCalibrationMove = this.game.getFen();
+      if (!this.analystEngine) return;
+      const evalResult = await this.analystEngine.evaluate(this.lastFenBeforeCalibrationMove, 10);
+      this.lastCalibrationEval = {
+        score: evalResult.score,
+        mate: evalResult.mate,
+        bestMove: evalResult.bestMove,
+        pv: evalResult.pv,
+      };
+    } catch (e) {
+      console.warn('Erro ao avaliar posição de calibração:', e);
+    }
+  }
+
+  public async handleCalibrationPlayerMove(event: MoveEvent): Promise<void> {
+    if (this.isEngineThinking) return;
+
+    this.board?.setInteractive(false);
+
+    try {
+      const fenAfter = this.game.getFen();
+      let cpLoss = 0;
+
+      if (this.analystEngine) {
+        const evalAfterEngine = await this.analystEngine.evaluate(fenAfter, 10);
+        const evalAfterPlayer = -evalAfterEngine.score;
+        const mateAfterPlayer = evalAfterEngine.mate !== null ? -evalAfterEngine.mate : null;
+
+        const bestMoveUci = this.lastCalibrationEval?.bestMove ?? (event.from + event.to);
+
+        const ctx: PositionContext = {
+          fen: fenAfter,
+          moveNumber: this.game.moveNumber(),
+          playerColor: 'w',
+          evalBefore: this.lastCalibrationEval?.score ?? 0,
+          mateBefore: this.lastCalibrationEval?.mate ?? null,
+          bestMoveUci,
+          bestMoveSan: bestMoveUci,
+          pvBefore: this.lastCalibrationEval?.pv ?? [bestMoveUci],
+          evalAfter: evalAfterPlayer,
+          mateAfter: mateAfterPlayer,
+          playerMoveSan: event.san,
+          playerMoveUci: event.from + event.to + (event.promotion || ''),
+          fenBefore: this.lastFenBeforeCalibrationMove,
+          fenAfter,
+        };
+
+        const analysis = analyzeMoveQuality(ctx);
+        cpLoss = analysis.cpLoss;
+      }
+
+      this.calibrationTotalCpLoss += cpLoss;
+      this.calibrationMovesCount++;
+
+      // Atualiza interface com stats
+      const countEl = this.container.querySelector('#calib-move-count');
+      if (countEl) countEl.textContent = `${this.calibrationMovesCount} / 10`;
+
+      const acplEl = this.container.querySelector('#calib-acpl-val');
+      if (acplEl) {
+        acplEl.textContent = `${Math.round(this.calibrationTotalCpLoss / this.calibrationMovesCount)} cp`;
+      }
+
+      const btnFinish = this.container.querySelector<HTMLButtonElement>('#btn-finish-calibration');
+      if (btnFinish && this.calibrationMovesCount >= 5) {
+        btnFinish.style.display = 'block';
+      }
+
+      // Se completou 10 lances ou fim de jogo
+      if (this.calibrationMovesCount >= 10 || this.game.isGameOver()) {
+        await this.finishCalibrationGame();
+        return;
+      }
+
+      // Oponente responde
+      this.isEngineThinking = true;
+      if (this.opponentEngine) {
+        const bestMove = await this.opponentEngine.getBestMove(this.game.getFen(), { moveTime: 500 });
+        const from = bestMove.substring(0, 2);
+        const to = bestMove.substring(2, 4);
+        const promotion = bestMove.length > 4 ? bestMove[4] : undefined;
+        this.game.makeMove(from, to, promotion);
+        this.board?.sync();
+      }
+
+      this.isEngineThinking = false;
+
+      if (this.game.isGameOver()) {
+        await this.finishCalibrationGame();
+        return;
+      }
+
+      await this.cacheCalibrationPositionEval();
+      this.board?.setInteractive(true);
+    } catch (e) {
+      console.warn('Erro durante lance de calibração:', e);
+      this.isEngineThinking = false;
+      this.board?.setInteractive(true);
+    }
+  }
+
+  public async finishCalibrationGame(): Promise<void> {
+    const realAcpl = this.calibrationMovesCount > 0
+      ? Math.round(this.calibrationTotalCpLoss / this.calibrationMovesCount)
+      : 80;
+
+    const assessment = completeAssessment(this.results, realAcpl);
+    this.renderSummary(assessment);
+  }
+
+  private renderSummary(assessment: AssessmentResult): void {
     const correctCount = this.results.filter(r => r.correct).length;
-    // ACPL estimado com base na taxa de acertos dos puzzles
-    const estimatedAcpl = Math.max(30, 220 - correctCount * 15);
-    const assessment = completeAssessment(this.results, estimatedAcpl);
 
     this.container.innerHTML = `
       <div class="assessment-screen summary">
         <div class="card summary-card">
           <div class="trophy-badge">🏆</div>
           <h1>Avaliação Concluída!</h1>
-          <p class="summary-subtitle">Seu perfil foi criado e calibrado com sucesso.</p>
+          <p class="summary-subtitle">Seu perfil foi criado e calibrado pelo Stockfish com sucesso.</p>
 
           <div class="elo-result-box">
             <span class="elo-result-label">Faixa de Elo estimada:</span>
@@ -172,8 +380,12 @@ export class AssessmentScreen {
               <span class="lbl">Exercícios Corretos</span>
             </div>
             <div class="summary-stat">
+              <span class="val">${assessment.calibrationAcpl} cp</span>
+              <span class="lbl">ACPL Real de Calibração</span>
+            </div>
+            <div class="summary-stat">
               <span class="val">~${assessment.estimatedElo + 50}</span>
-              <span class="lbl">Força do Motor (Desafio Leve)</span>
+              <span class="lbl">Força Inicial do Motor</span>
             </div>
           </div>
 
@@ -195,6 +407,8 @@ export class AssessmentScreen {
 
   destroy(): void {
     this.board?.destroy();
+    this.opponentEngine?.destroy();
+    this.analystEngine?.destroy();
     this.container.innerHTML = '';
   }
 }

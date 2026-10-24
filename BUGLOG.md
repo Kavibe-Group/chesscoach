@@ -37,8 +37,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/ui/screens/AssessmentScreen.ts`
 - **Como reproduzir:** Concluir as 12 posições da avaliação. O app saltava diretamente para o sumário calculando um `estimatedAcpl = Math.max(30, 220 - correctCount * 15)` puramente simulado, sem jogar a partida de calibração contra o motor prevista no plano original.
 - **Causa provável:** A partida de calibração contra o motor foi pulada e substituída por uma fórmula matemática estática, violando a regra de não inventar avaliações sem o Stockfish.
-- **Teste de regressão:** `src/assessment/AssessmentManager.test.ts` e `src/ui/screens/AssessmentScreen.test.ts`
-- **Status:** Aberto
+- **Teste de regressão:** `src/ui/screens/AssessmentScreen.test.ts` (testes de transição para calibração real e cálculo do ACPL pelo Stockfish)
+- **Status:** Resolvido (commit fix(BUG-03))
 
 ---
 
