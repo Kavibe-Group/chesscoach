@@ -22,6 +22,8 @@ export class ChessBoard {
   private playerColor: 'white' | 'black' = 'white';
   private onMoveCallback: ((event: MoveEvent) => void) | null = null;
   private isInteractive = true;
+  private resizeObserver: ResizeObserver | null = null;
+  private resizeTimer: number | null = null;
 
   constructor(container: HTMLElement, game: GameController, playerColor: 'white' | 'black' = 'white') {
     this.container = container;
@@ -31,6 +33,19 @@ export class ChessBoard {
 
     this.container.classList.add('cg-board-wrapper');
     this.cg = Chessground(this.container, this.buildConfig());
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (this.resizeTimer !== null) {
+          cancelAnimationFrame(this.resizeTimer);
+        }
+        this.resizeTimer = requestAnimationFrame(() => {
+          this.cg.redrawAll();
+          this.resizeTimer = null;
+        });
+      });
+      this.resizeObserver.observe(this.container);
+    }
   }
 
   private buildConfig(): Config {
@@ -163,11 +178,19 @@ export class ChessBoard {
   }
 
   /**
-   * Ativa ou desativa interatividade do jogador
+   * Ativa ou desativa interatividade do jogador sem disparar re-render redundante de peças
    */
   setInteractive(interactive: boolean): void {
     this.isInteractive = interactive;
-    this.sync();
+    const turn = this.game.turn() === 'w' ? 'white' : 'black';
+    const isPlayerTurn = turn === this.playerColor && this.isInteractive && !this.game.isGameOver();
+
+    this.cg.set({
+      movable: {
+        color: isPlayerTurn ? this.playerColor : undefined,
+        dests: isPlayerTurn ? this.calculateDests() : new Map(),
+      },
+    });
   }
 
   /**
@@ -197,6 +220,14 @@ export class ChessBoard {
   }
 
   destroy(): void {
+    if (this.resizeTimer !== null) {
+      cancelAnimationFrame(this.resizeTimer);
+      this.resizeTimer = null;
+    }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
     this.cg.destroy();
     this.promotionModal.destroy();
   }
