@@ -49,6 +49,7 @@ export class GameScreen {
   private lastFenBeforePlayerMove = '';
   private lastEvalBeforeMove: { score: number; mate: number | null; bestMove: string; pv: string[] } | null = null;
   private isEngineThinking = false;
+  private engineMoveAborted = false;
   private gameCompleted = false;
 
   constructor(container: HTMLElement, events: GameScreenEvents) {
@@ -351,11 +352,16 @@ export class GameScreen {
     if (this.game.isGameOver() || this.gameCompleted) return;
 
     this.isEngineThinking = true;
+    this.engineMoveAborted = false;
     this.updateTurnIndicator('Motor pensando...');
 
     try {
       const fen = this.game.getFen();
       const bestMove = await this.opponentEngine.getBestMove(fen, { moveTime: 800 });
+
+      if (this.engineMoveAborted) {
+        return;
+      }
 
       const from = bestMove.substring(0, 2);
       const to = bestMove.substring(2, 4);
@@ -384,6 +390,9 @@ export class GameScreen {
       this.board?.setInteractive(true);
       this.updateTurnIndicator('Sua vez');
     } catch (err) {
+      if (this.engineMoveAborted) {
+        return;
+      }
       console.error('Erro na resposta do motor:', err);
       this.isEngineThinking = false;
       this.board?.setInteractive(true);
@@ -392,15 +401,34 @@ export class GameScreen {
   }
 
   /**
-   * Desfaz o lance para tentar de novo após Erro ou Erro Grave
+   * Desfaz o lance para tentar de novo após Erro ou Erro Grave.
+   * Cancela a busca do motor se em andamento ou desfaz ambos os lances
+   * (resposta do motor + erro do jogador) caso o motor já tenha respondido.
    */
-  private handleRetryMove(): void {
-    if (this.isEngineThinking) return;
+  public handleRetryMove(): void {
+    if (this.isEngineThinking) {
+      this.engineMoveAborted = true;
+      this.opponentEngine.stop();
+      this.isEngineThinking = false;
+    }
 
-    // Desfaz lance do jogador
-    this.game.undoMove();
-    this.moveList?.undoLastMove();
+    const isPlayerTurn = (this.game.turn() === 'w' && this.playerColor === 'white') ||
+                         (this.game.turn() === 'b' && this.playerColor === 'black');
+
+    if (isPlayerTurn) {
+      // O motor já havia respondido: desfaz lance do motor e o erro do jogador
+      this.game.undoMove();
+      this.moveList?.undoLastMove();
+      this.game.undoMove();
+      this.moveList?.undoLastMove();
+    } else {
+      // O motor ainda não respondeu (ex: busca cancelada): desfaz apenas o erro do jogador
+      this.game.undoMove();
+      this.moveList?.undoLastMove();
+    }
+
     this.analyzedMoves.pop();
+    this.gameCompleted = false;
 
     this.board?.clearShapes();
     this.board?.sync();

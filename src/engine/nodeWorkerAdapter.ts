@@ -7,11 +7,19 @@ export function createNodeStockfishWorker(): IWorker {
   // Em ambiente Node / Vitest
   let createRequireFn: any;
   try {
-    // Dynamic import ou eval para evitar que tsc reclame de tipos Node no build do browser
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = eval('require("module")');
-    createRequireFn = mod.createRequire;
+    const nodeModule = (globalThis as any).process?.getBuiltinModule?.('module');
+    if (nodeModule?.createRequire) {
+      createRequireFn = nodeModule.createRequire;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const req = typeof require !== 'undefined' ? require : (0, eval)('require');
+      createRequireFn = req('module').createRequire;
+    }
   } catch {
+    throw new Error('createNodeStockfishWorker só deve ser chamado em ambiente de teste Node.');
+  }
+
+  if (!createRequireFn) {
     throw new Error('createNodeStockfishWorker só deve ser chamado em ambiente de teste Node.');
   }
 

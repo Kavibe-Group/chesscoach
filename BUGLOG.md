@@ -17,8 +17,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/ui/screens/GameScreen.ts`
 - **Como reproduzir:** Em uma partida, jogar um lance de erro grave. O motor adversário responde quase imediatamente. Se o jogador clicar em "Tentar de novo", o método `handleRetryMove` apenas chama `undoMove()` uma vez, desfazendo o lance do motor e mantendo o erro do jogador no tabuleiro. Se o motor ainda estiver pensando, o clique é sumariamente ignorado.
 - **Causa provável:** O motor oponente iniciava a busca imediatamente sem intervalo de decisão para o jogador. `handleRetryMove` não desfazia ambos os lances (motor + jogador) caso o motor já tivesse respondido, nem abortava a busca em andamento.
-- **Teste de regressão:** `src/ui/GameScreen.test.ts` (ou teste unitário de fluxo de retry)
-- **Status:** Aberto
+- **Teste de regressão:** `src/ui/screens/GameScreen.test.ts` (testes de desfecho duplo após resposta e aborto enquanto motor pensa)
+- **Status:** Resolvido (commit fix(BUG-01))
 
 ---
 

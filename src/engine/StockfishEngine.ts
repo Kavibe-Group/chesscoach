@@ -140,7 +140,9 @@ export class StockfishEngine {
     } else if (typeof Worker !== 'undefined') {
       this.worker = new BrowserWorkerWrapper('/stockfish-19-lite-single.js');
     } else {
-      throw new Error('Ambiente sem suporte a Web Worker. Forneça uma fábrica de workers.');
+      // Em ambiente Node / Vitest, utiliza o adapter do Stockfish
+      const { createNodeStockfishWorker } = await import('./nodeWorkerAdapter.js');
+      this.worker = createNodeStockfishWorker();
     }
 
     if (!this.worker) {
