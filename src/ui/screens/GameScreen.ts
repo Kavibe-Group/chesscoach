@@ -313,6 +313,7 @@ export class GameScreen {
         bestMoveUci,
         bestMoveSan,
         pvBefore: this.lastEvalBeforeMove?.pv ?? [bestMoveUci],
+        pvAfter: evalAfterEngine.pv,
         evalAfter: evalAfterPlayer,
         mateAfter: mateAfterPlayer,
         playerMoveSan: event.san,

@@ -173,4 +173,33 @@ describe('MoveAnalyzer (Fase 2 - Feedback pós-lance e Padrões)', () => {
     // Erro (61-150) rebaixado em 1 nível vira imprecisão
     expect(analysis.quality).toBe('imprecisao');
   });
+
+  it('BUG-04: detecta peça desprotegida punível usando pvAfter[0] em vez de pvBefore[1]', () => {
+    // Brancas têm cavalo em e4 atacado pelo peão preto em d5.
+    // Melhor lance: e4f6 (pvBefore: ['e4f6', 'e8f7']). pvBefore[1] é e8f7 (lance de rei).
+    // Jogador joga a2a3, deixando o cavalo em e4 sem defesa.
+    // A resposta do motor ao lance a2a3 é d5e4 (captura o cavalo em e4).
+    const ctx: PositionContext = {
+      fen: '4k3/8/8/3p4/4N3/P7/8/4K3 b - - 0 1',
+      moveNumber: 10,
+      playerColor: 'w',
+      evalBefore: 0,
+      mateBefore: null,
+      bestMoveUci: 'e4f6',
+      bestMoveSan: 'Nf6+',
+      pvBefore: ['e4f6', 'e8f7'],
+      pvAfter: ['d5e4'],
+      evalAfter: -350,
+      mateAfter: null,
+      playerMoveSan: 'a3',
+      playerMoveUci: 'a2a3',
+      fenBefore: '4k3/8/8/3p4/4N3/8/P7/4K3 w - - 0 1',
+      fenAfter: '4k3/8/8/3p4/4N3/P7/8/4K3 b - - 0 1',
+    };
+
+    const analysis = analyzeMoveQuality(ctx);
+    expect(analysis.quality).toBe('erro_grave');
+    expect(analysis.explanation).toContain('Peça desprotegida');
+    expect(analysis.explanation).toContain('cavalo em e4 sem defesa');
+  });
 });

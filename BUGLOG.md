@@ -47,8 +47,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/analysis/MoveAnalyzer.ts`
 - **Como reproduzir:** Jogar um lance que pendura uma peça. A explicação tentava detectar a peça desprotegida usando `ctx.pvBefore[1]`, que é a resposta ao *melhor lance* (não jogado), e não ao lance real do jogador.
 - **Causa provável:** Uso incorreto de `pvBefore` em vez de `pvAfter` (variante calculada sobre `fenAfter`).
-- **Teste de regressão:** `src/analysis/MoveAnalyzer.test.ts`
-- **Status:** Aberto
+- **Teste de regressão:** `src/analysis/MoveAnalyzer.test.ts` (`BUG-04: detecta peça desprotegida punível usando pvAfter[0] em vez de pvBefore[1]`)
+- **Status:** Resolvido (commit fix(BUG-04))
 
 ---
 

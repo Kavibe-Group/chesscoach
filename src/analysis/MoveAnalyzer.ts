@@ -56,6 +56,8 @@ export interface PositionContext {
   bestMoveSan: string;
   /** Variante principal antes do lance */
   pvBefore: string[];
+  /** Variante principal recomendada pelo motor após o lance do jogador */
+  pvAfter?: string[];
   /** Avaliação do motor após o lance (cp, perspectiva do jogador) */
   evalAfter: number;
   mateAfter: number | null;
@@ -185,20 +187,21 @@ function detectPatternExplanation(
       const chessBefore = new Chess(ctx.fenBefore);
       const chessAfter = new Chess(ctx.fenAfter);
 
-      // 3. Peça deixada desprotegida e capturável (e o lance do motor a punia)
-      // Verifica a resposta recomendada pelo motor na variante principal
-      if (ctx.pvBefore && ctx.pvBefore.length > 1) {
-        const replyUci = ctx.pvBefore[1];
-        if (replyUci && replyUci.length >= 4) {
-          const replyTo = replyUci.substring(2, 4) as Square;
-          const pieceAtTarget = chessAfter.get(replyTo);
+      // 3. Peça deixada desprotegida e capturável (e a melhor resposta do motor a punia)
+      // Usa pvAfter[0] (resposta do adversário ao lance real do jogador)
+      const replyUci = (ctx.pvAfter && ctx.pvAfter.length > 0)
+        ? ctx.pvAfter[0]
+        : (ctx.pvBefore && ctx.pvBefore.length > 1 ? ctx.pvBefore[1] : null);
 
-          if (pieceAtTarget && pieceAtTarget.color === ctx.playerColor) {
-            const defenders = chessAfter.attackers(replyTo, ctx.playerColor);
-            if (defenders.length === 0) {
-              const pieceName = PIECE_NAMES_PT[pieceAtTarget.type] || 'sua peça';
-              return `Peça desprotegida! O seu lance deixou ${pieceName} em ${replyTo} sem defesa.`;
-            }
+      if (replyUci && replyUci.length >= 4) {
+        const replyTo = replyUci.substring(2, 4) as Square;
+        const pieceAtTarget = chessAfter.get(replyTo);
+
+        if (pieceAtTarget && pieceAtTarget.color === ctx.playerColor) {
+          const defenders = chessAfter.attackers(replyTo, ctx.playerColor);
+          if (defenders.length === 0) {
+            const pieceName = PIECE_NAMES_PT[pieceAtTarget.type] || 'sua peça';
+            return `Peça desprotegida! O seu lance deixou ${pieceName} em ${replyTo} sem defesa.`;
           }
         }
       }
