@@ -127,5 +127,5 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/engine/StockfishEngine.ts`
 - **Como reproduzir:** Ocorrer um erro ou timeout no método `evaluate()`. O handler de mensagens `infoHandler` permanecia indefinidamente no array `messageHandlers` e a força anterior do motor não era restaurada.
 - **Causa provável:** Ausência de bloco `try...finally` garantindo a remoção do handler e restauração da configuração.
-- **Teste de regressão:** `src/engine/StockfishEngine.test.ts`
-- **Status:** Aberto
+- **Teste de regressão:** `src/engine/StockfishEngine.test.ts` (`BUG-12: limpa handlers e garante que falhas no evaluate não deixam listeners orfãos`)
+- **Status:** Resolvido (commit fix(BUG-12))
