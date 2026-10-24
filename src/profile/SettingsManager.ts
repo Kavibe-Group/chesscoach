@@ -26,7 +26,19 @@ export function getSettings(): AppSettings {
   const data = getStorage().getItem(SETTINGS_KEY);
   if (!data) return { ...DEFAULT_SETTINGS };
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+    const parsed = JSON.parse(data);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { ...DEFAULT_SETTINGS };
+    }
+    return {
+      playerColor: parsed.playerColor === 'black' ? 'black' : 'white',
+      clockMinutes: typeof parsed.clockMinutes === 'number' ? parsed.clockMinutes : DEFAULT_SETTINGS.clockMinutes,
+      engineStrengthMode: parsed.engineStrengthMode === 'manual' ? 'manual' : DEFAULT_SETTINGS.engineStrengthMode,
+      manualElo: typeof parsed.manualElo === 'number' ? parsed.manualElo : DEFAULT_SETTINGS.manualElo,
+      boardTheme: ['brown', 'green', 'blue'].includes(parsed.boardTheme) ? parsed.boardTheme : DEFAULT_SETTINGS.boardTheme,
+      showLegalMoves: parsed.showLegalMoves !== false,
+      showHighlights: parsed.showHighlights !== false,
+    };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

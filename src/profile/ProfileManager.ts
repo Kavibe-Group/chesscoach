@@ -34,7 +34,20 @@ export function getProfile(): PlayerProfile | null {
   const data = getStorage().getItem(PROFILE_KEY);
   if (!data) return null;
   try {
-    return JSON.parse(data) as PlayerProfile;
+    const parsed = JSON.parse(data);
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.estimatedElo !== 'number') {
+      return null;
+    }
+    return {
+      estimatedElo: parsed.estimatedElo,
+      eloHistory: Array.isArray(parsed.eloHistory) ? parsed.eloHistory : [],
+      gamesPlayed: typeof parsed.gamesPlayed === 'number' ? parsed.gamesPlayed : 0,
+      totalAccuracy: typeof parsed.totalAccuracy === 'number' ? parsed.totalAccuracy : 0,
+      assessmentCompleted: Boolean(parsed.assessmentCompleted),
+      errorCategories: (parsed.errorCategories && typeof parsed.errorCategories === 'object') ? parsed.errorCategories : {},
+      createdAt: parsed.createdAt || new Date().toISOString(),
+      updatedAt: parsed.updatedAt || new Date().toISOString(),
+    };
   } catch {
     return null;
   }
@@ -143,7 +156,8 @@ export function getGameStatsHistory(): GameStats[] {
   const data = getStorage().getItem(STATS_KEY);
   if (!data) return [];
   try {
-    return JSON.parse(data) as GameStats[];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }

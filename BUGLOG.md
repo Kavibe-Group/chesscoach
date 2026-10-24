@@ -87,8 +87,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/storage.ts`, `src/profile/ProfileManager.ts`, `src/training/TrainingManager.ts`, `src/profile/SettingsManager.ts`
 - **Como reproduzir:** Salvar dados corrompidos ou JSON incompleto (ex.: `{}`) no `localStorage`. Métodos de array como `queue.filter` e propriedades como `eloHistory.slice` lançam `TypeError` e impedem a inicialização do app.
 - **Causa provável:** Ausência de sanitização, validação de schema e valores padrão seguros ao ler do storage.
-- **Teste de regressão:** `src/storage.test.ts`
-- **Status:** Aberto
+- **Teste de regressão:** `src/storage.test.ts` (testes de perfil corrompido, treino corrompido, stats corrompidos e configurações)
+- **Status:** Resolvido (commit fix(BUG-08))
 
 ---
 

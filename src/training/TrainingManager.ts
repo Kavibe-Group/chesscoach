@@ -26,7 +26,9 @@ export function getTrainingQueue(): TrainingPosition[] {
   const data = getStorage().getItem(TRAINING_KEY);
   if (!data) return [];
   try {
-    return JSON.parse(data) as TrainingPosition[];
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(p => p && typeof p === 'object' && typeof p.fen === 'string');
   } catch {
     return [];
   }
