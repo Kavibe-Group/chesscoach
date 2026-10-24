@@ -1,6 +1,8 @@
 // Training module - manages the error training queue
 // Positions from player's real errors, to practice
 
+import { getStorage } from '../storage.js';
+
 export interface TrainingPosition {
   id: string;
   fen: string;              // position where the error happened
@@ -21,7 +23,7 @@ export interface TrainingPosition {
 const TRAINING_KEY = 'xadrez-coach-training';
 
 export function getTrainingQueue(): TrainingPosition[] {
-  const data = localStorage.getItem(TRAINING_KEY);
+  const data = getStorage().getItem(TRAINING_KEY);
   if (!data) return [];
   try {
     return JSON.parse(data) as TrainingPosition[];
@@ -31,7 +33,7 @@ export function getTrainingQueue(): TrainingPosition[] {
 }
 
 export function saveTrainingQueue(queue: TrainingPosition[]): void {
-  localStorage.setItem(TRAINING_KEY, JSON.stringify(queue));
+  getStorage().setItem(TRAINING_KEY, JSON.stringify(queue));
 }
 
 export function addTrainingPosition(pos: Omit<TrainingPosition, 'id' | 'attempts' | 'correct' | 'mastered' | 'consecutiveCorrect' | 'dateAdded'>): void {

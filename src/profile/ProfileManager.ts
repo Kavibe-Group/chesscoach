@@ -1,6 +1,8 @@
 // Profile module - manages player profile, stats, and Elo estimation
 // Persisted in localStorage
 
+import { getStorage } from '../storage.js';
+
 export interface PlayerProfile {
   estimatedElo: number;
   eloHistory: { date: string; elo: number }[];
@@ -29,7 +31,7 @@ const PROFILE_KEY = 'xadrez-coach-profile';
 const STATS_KEY = 'xadrez-coach-stats';
 
 export function getProfile(): PlayerProfile | null {
-  const data = localStorage.getItem(PROFILE_KEY);
+  const data = getStorage().getItem(PROFILE_KEY);
   if (!data) return null;
   try {
     return JSON.parse(data) as PlayerProfile;
@@ -40,7 +42,7 @@ export function getProfile(): PlayerProfile | null {
 
 export function saveProfile(profile: PlayerProfile): void {
   profile.updatedAt = new Date().toISOString();
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  getStorage().setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
 export function createProfile(estimatedElo: number): PlayerProfile {
@@ -138,7 +140,7 @@ export function getEloBand(elo: number): string {
 
 // Game stats history
 export function getGameStatsHistory(): GameStats[] {
-  const data = localStorage.getItem(STATS_KEY);
+  const data = getStorage().getItem(STATS_KEY);
   if (!data) return [];
   try {
     return JSON.parse(data) as GameStats[];
@@ -152,7 +154,7 @@ export function saveGameStats(stats: GameStats): void {
   history.push(stats);
   // Keep last 100 games
   if (history.length > 100) history.shift();
-  localStorage.setItem(STATS_KEY, JSON.stringify(history));
+  getStorage().setItem(STATS_KEY, JSON.stringify(history));
 }
 
 export function getDominantErrorCategory(profile: PlayerProfile): string | null {
