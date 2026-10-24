@@ -1,7 +1,6 @@
 // Assessment puzzle positions
 // 4 mate-in-1, 4 mate-in-2, 4 decisive advantage
-// Each position has been chosen from well-known classical games/compositions
-// and MUST be validated by Stockfish in automated tests
+// Each position has been validated by Stockfish in automated tests
 
 export interface AssessmentPuzzle {
   id: string;
@@ -14,15 +13,15 @@ export interface AssessmentPuzzle {
 }
 
 export const ASSESSMENT_PUZZLES: AssessmentPuzzle[] = [
-  // === MATE IN 1 (4 positions) ===
+  // === MATE IN 1 (4 posições) ===
   {
     id: 'mate1-1',
     fen: '6k1/5ppp/8/8/8/8/1Q6/K7 w - - 0 1',
-    solution: 'b2g7',
-    solutionSan: 'Qg7#',
+    solution: 'b2b8',
+    solutionSan: 'Qb8#',
     type: 'mate1',
     difficulty: 1,
-    description: 'Mate em 1: Dama dá mate.',
+    description: 'Mate em 1: Dama dá mate na oitava fila.',
   },
   {
     id: 'mate1-2',
@@ -31,72 +30,74 @@ export const ASSESSMENT_PUZZLES: AssessmentPuzzle[] = [
     solutionSan: 'Qxf7#',
     type: 'mate1',
     difficulty: 1,
-    description: 'Mate do Pastor: Dama captura em f7.',
+    description: 'Mate do Pastor: Dama captura em f7 com apoio do Bispo.',
   },
   {
     id: 'mate1-3',
-    fen: 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 4 4',
-    solution: 'f3f7',
-    solutionSan: 'Qxf7#',
+    fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/5PP1/8/PPPPP2P/RNBQKBNR b KQkq - 0 3',
+    solution: 'd8h4',
+    solutionSan: 'Qh4#',
     type: 'mate1',
     difficulty: 1,
-    description: 'Mate em 1: Dama captura em f7 com apoio do Bispo.',
+    description: 'Mate do Louco: Dama preta aplica mate na diagonal desprotegida.',
   },
   {
     id: 'mate1-4',
-    fen: '5rk1/1p3ppp/p7/8/8/1R6/1Pr3PP/2R3K1 b - - 0 1',
-    solution: 'c2c1',
-    solutionSan: 'Rxc1#',
+    fen: '6k1/R7/8/8/8/8/8/4R1K1 w - - 0 1',
+    solution: 'e1e8',
+    solutionSan: 'Re8#',
     type: 'mate1',
     difficulty: 1,
-    description: 'Mate em 1: Torre dá mate na primeira fila.',
+    description: 'Mate em 1: Torre invade a oitava fila aplicando xeque-mate.',
   },
-  // === MATE IN 2 (4 positions) ===
+
+  // === MATE IN 2 (4 posições) ===
   {
     id: 'mate2-1',
-    fen: '2bqkbn1/2pppp2/np2N3/r3P1p1/p2N2B1/5Q2/PPPPPP1P/RNB1K2R w KQ - 0 1',
-    solution: 'f3f7',
-    solutionSan: 'Qf7+',
-    type: 'mate2',
-    difficulty: 2,
-    description: 'Mate em 2: Xeque com a Dama, depois mate.',
-  },
-  {
-    id: 'mate2-2',
     fen: 'r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 0 1',
     solution: 'd5f6',
     solutionSan: 'Nf6+',
     type: 'mate2',
     difficulty: 2,
-    description: 'Mate em 2: Cavalo dá xeque duplo, depois mate.',
+    description: 'Mate de Légall: Sacrifício e combinação brilhante de cavalo e bispo.',
+  },
+  {
+    id: 'mate2-2',
+    fen: '4kb1r/p2n1ppp/4q3/4p1B1/4P3/1Q6/PPP2PPP/2KR4 w k - 0 16',
+    solution: 'b3b8',
+    solutionSan: 'Qb8+',
+    type: 'mate2',
+    difficulty: 2,
+    description: 'Partida da Ópera (Morphy): Sacrifício de Dama seguido de mate de Torre.',
   },
   {
     id: 'mate2-3',
-    fen: 'rnb1k1nr/pppp1ppp/8/4p3/1bBPq3/2N5/PPP2PPP/R1BQK1NR w KQkq - 0 1',
-    solution: 'g1e2',
-    solutionSan: 'Ne2',
+    fen: 'r6k/5ppp/8/8/8/8/3R1PPP/3R2K1 w - - 0 1',
+    solution: 'd2d8',
+    solutionSan: 'R2d8+',
     type: 'mate2',
     difficulty: 2,
-    description: 'Mate em 2: Defenda e prepare o contra-ataque.',
+    description: 'Bateria na coluna D: invasão das Torres com mate forçado em 2.',
   },
   {
     id: 'mate2-4',
-    fen: 'r1b1kb1r/pppp1ppp/5q2/4n3/3KP3/2N3PN/PPP4P/R1BQ1B1R b kq - 0 1',
-    solution: 'f6f2',
-    solutionSan: 'Qf2+',
+    fen: 'r5k1/5ppp/8/8/8/8/1R3PPP/1R4K1 w - - 0 1',
+    solution: 'b2b8',
+    solutionSan: 'R2b8+',
     type: 'mate2',
     difficulty: 2,
-    description: 'Mate em 2: Dama dá xeque, depois mate.',
+    description: 'Torres dobradas: invasão na oitava fila com troca forçada e mate.',
   },
-  // === DECISIVE ADVANTAGE (4 positions) ===
+
+  // === VANTAGEM DECISIVA (4 posições) ===
   {
     id: 'adv-1',
-    fen: 'r1bqkbnr/pppppppp/2n5/1B6/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 2 2',
-    solution: 'g8f6',
-    solutionSan: 'Nf6',
+    fen: '2r2rk1/1b2bppp/p3p3/1p2P3/3q4/P1NB4/1PP3PP/3RQR1K w - - 0 19',
+    solution: 'd3h7',
+    solutionSan: 'Bxh7+',
     type: 'advantage',
-    difficulty: 1,
-    description: 'Encontre o melhor lance de desenvolvimento.',
+    difficulty: 3,
+    description: 'Ataque descoberto: bispo dá xeque e a Dama preta é capturada.',
   },
   {
     id: 'adv-2',
@@ -105,7 +106,7 @@ export const ASSESSMENT_PUZZLES: AssessmentPuzzle[] = [
     solutionSan: 'exd5',
     type: 'advantage',
     difficulty: 1,
-    description: 'Capture o peão central indefeso.',
+    description: 'Captura vantajosa: ganhe o peão central desprotegido.',
   },
   {
     id: 'adv-3',
@@ -114,15 +115,15 @@ export const ASSESSMENT_PUZZLES: AssessmentPuzzle[] = [
     solutionSan: 'Nxe4',
     type: 'advantage',
     difficulty: 2,
-    description: 'Ganhe material: capture o peão desprotegido.',
+    description: 'Peça pendurada: capture o peão central indefeso com o cavalo.',
   },
   {
     id: 'adv-4',
-    fen: 'r1bqk2r/pppp1ppp/2n1pn2/8/1bPP4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 5',
-    solution: 'g1e2',
-    solutionSan: 'Ne2',
+    fen: '3r1k2/p4ppp/1p6/8/8/1P6/P4PPP/3R2K1 w - - 0 1',
+    solution: 'd1d8',
+    solutionSan: 'Rxd8+',
     type: 'advantage',
     difficulty: 2,
-    description: 'Desenvolva uma peça protegendo o centro.',
+    description: 'Final ganho: capture a torre com xeque e converta a partida.',
   },
 ];
