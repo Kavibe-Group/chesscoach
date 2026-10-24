@@ -42,6 +42,8 @@ export class ChessBoard {
       orientation: this.playerColor,
       turnColor: turn,
       check: this.game.isCheck(),
+      autoCastle: true,
+      blockTouchScroll: true,
       animation: {
         enabled: true,
         duration: 200,

@@ -107,8 +107,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/ui/ChessBoard.ts`
 - **Como reproduzir:** Em dispositivos móveis com toque, arrastar peças arrasta a página. Ao fazer roque com o rei, a torre não acompanha a animação automaticamente.
 - **Causa provável:** Omissão de `autoCastle: true` e `blockTouchScroll: true` na configuração do Chessground.
-- **Teste de regressão:** `src/ui/ChessBoard.ts` (inspeção de configuração)
-- **Status:** Aberto
+- **Teste de regressão:** `src/ui/ChessBoard.test.ts` (`BUG-10: configura autoCastle: true e blockTouchScroll: true para usabilidade mobile e roque fluido`)
+- **Status:** Resolvido (commit fix(BUG-10))
 
 ---
 
