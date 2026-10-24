@@ -202,4 +202,30 @@ describe('MoveAnalyzer (Fase 2 - Feedback pós-lance e Padrões)', () => {
     expect(analysis.explanation).toContain('Peça desprotegida');
     expect(analysis.explanation).toContain('cavalo em e4 sem defesa');
   });
+
+  it('BUG-05: classifica perda de mate em 1 como erro grave mesmo se a posição mantiver mate em 4', () => {
+    const ctx: PositionContext = {
+      fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4',
+      moveNumber: 4,
+      playerColor: 'w',
+      evalBefore: 100000,
+      mateBefore: 1, // Mate em 1 disponível (Qxf7#)
+      bestMoveUci: 'h5f7',
+      bestMoveSan: 'Qxf7#',
+      pvBefore: ['h5f7'],
+      evalAfter: 100000,
+      mateAfter: 4, // Lance jogado mantém mate em 4, mas perdeu o mate imediato!
+      playerMoveSan: 'Qe2',
+      playerMoveUci: 'h5e2',
+      fenBefore: 'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4',
+      fenAfter: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/8/PPPPQPPP/RNB1K1NR b KQkq - 5 4',
+    };
+
+    const analysis = analyzeMoveQuality(ctx);
+    expect(analysis.quality).toBe('erro_grave');
+    expect(analysis.label).toBe('Erro Grave');
+    expect(analysis.cpLoss).toBe(9999);
+    expect(analysis.isRetryable).toBe(true);
+    expect(analysis.explanation).toContain('Havia mate em 1 com Qxf7#');
+  });
 });

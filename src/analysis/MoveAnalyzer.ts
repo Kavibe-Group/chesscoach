@@ -120,9 +120,16 @@ function calculateCpLoss(ctx: PositionContext): number {
     return 0;
   }
 
-  // Mate handling: jogador tinha mate favorável e perdeu
-  if (isMateFavorable(ctx.mateBefore) && !isMateFavorable(ctx.mateAfter)) {
+  // Mate em 1 perdido é sempre erro grave de perda máxima
+  if (ctx.mateBefore === 1) {
     return MATE_CP_LOSS;
+  }
+
+  // Mate handling: jogador tinha mate favorável e perdeu ou atrasou
+  if (isMateFavorable(ctx.mateBefore)) {
+    if (!isMateFavorable(ctx.mateAfter) || (ctx.mateAfter !== null && ctx.mateAfter > ctx.mateBefore)) {
+      return MATE_CP_LOSS;
+    }
   }
 
   // Se o lance permitiu mate do adversário (e antes não havia)
@@ -171,9 +178,11 @@ function detectPatternExplanation(
 ): string {
   const opponentColor = ctx.playerColor === 'w' ? 'b' : 'w';
 
-  // 1. Mate perdido: havia mate em N e ele não jogou
-  if (isMateFavorable(ctx.mateBefore) && !isMateFavorable(ctx.mateAfter)) {
-    return `Havia mate em ${ctx.mateBefore} com ${ctx.bestMoveSan}, mas você não jogou!`;
+  // 1. Mate perdido: havia mate em N e ele não jogou o melhor lance
+  if (isMateFavorable(ctx.mateBefore) && ctx.playerMoveUci !== ctx.bestMoveUci) {
+    if (!isMateFavorable(ctx.mateAfter) || ctx.mateBefore === 1 || (ctx.mateAfter !== null && ctx.mateAfter > ctx.mateBefore)) {
+      return `Havia mate em ${ctx.mateBefore} com ${ctx.bestMoveSan}, mas você não jogou!`;
+    }
   }
 
   // 2. Mate permitido: seu lance permite mate pelo adversário

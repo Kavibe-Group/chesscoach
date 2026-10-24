@@ -57,8 +57,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/analysis/MoveAnalyzer.ts`
 - **Como reproduzir:** Em uma posição com mate em 1, jogar qualquer lance legal que mantenha vantagem com mate em 4. `calculateCpLoss` tratava mate em 4 como favorável e classificava o lance como `Excelente` (0 cpLoss) devido ao valor sentinela de 100.000 cp.
 - **Causa provável:** Falta de detecção de mate imediato ignorado quando o jogador não joga o melhor lance de mate.
-- **Teste de regressão:** `src/analysis/MoveAnalyzer.test.ts`
-- **Status:** Aberto
+- **Teste de regressão:** `src/analysis/MoveAnalyzer.test.ts` (`BUG-05: classifica perda de mate em 1 como erro grave mesmo se a posição mantiver mate em 4`)
+- **Status:** Resolvido (commit fix(BUG-05))
 
 ---
 
