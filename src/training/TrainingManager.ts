@@ -56,6 +56,14 @@ export function addTrainingPosition(pos: Omit<TrainingPosition, 'id' | 'attempts
   saveTrainingQueue(queue);
 }
 
+export function removeTrainingPosition(fen: string): void {
+  const queue = getTrainingQueue();
+  const filtered = queue.filter(p => p.fen !== fen);
+  if (filtered.length !== queue.length) {
+    saveTrainingQueue(filtered);
+  }
+}
+
 export function recordTrainingAttempt(id: string, wasCorrect: boolean): TrainingPosition | null {
   const queue = getTrainingQueue();
   const pos = queue.find(p => p.id === id);

@@ -6,7 +6,7 @@ import { ClockView } from '../ClockView.js';
 import { StockfishEngine, eloToEngineConfig } from '../../engine/StockfishEngine.js';
 import { analyzeMoveQuality, type MoveAnalysis, type PositionContext } from '../../analysis/MoveAnalyzer.js';
 import { getProfile, getSettings } from '../../profile/index.js';
-import { addTrainingPosition } from '../../training/index.js';
+import { addTrainingPosition, removeTrainingPosition } from '../../training/index.js';
 
 export interface GameScreenEvents {
   onGameOver: (gameStats: {
@@ -430,6 +430,11 @@ export class GameScreen {
 
     this.analyzedMoves.pop();
     this.gameCompleted = false;
+
+    // Se o lance desfeito havia entrado na fila de treino de erros, remove-o
+    if (this.lastFenBeforePlayerMove) {
+      removeTrainingPosition(this.lastFenBeforePlayerMove);
+    }
 
     this.board?.clearShapes();
     this.board?.sync();

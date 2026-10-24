@@ -74,11 +74,11 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 
 ## BUG-07
 - **Severidade:** P1
-- **Onde:** `src/ui/screens/GameScreen.ts`
+- **Onde:** `src/ui/screens/GameScreen.ts` e `src/training/TrainingManager.ts`
 - **Como reproduzir:** Cometer um erro e clicar em "Tentar de novo". O erro anterior já havia sido salvo no `TrainingManager` e permanecia na fila de treino mesmo após ser corrigido na segunda chance.
-- **Causa provável:** Chamada imediata a `addTrainingPosition` no momento do lance em vez de registrar ao término do lance consolidado ou permitir cancelamento no retry.
-- **Teste de regressão:** `src/e2e.test.ts`
-- **Status:** Aberto
+- **Causa provável:** Chamada imediata a `addTrainingPosition` no momento do lance sem remoção correspondente ao desfazer a jogada.
+- **Teste de regressão:** `src/ui/screens/GameScreen.test.ts` (`BUG-07: remove erro da fila de treino ao clicar em tentar de novo`)
+- **Status:** Resolvido (commit fix(BUG-07))
 
 ---
 

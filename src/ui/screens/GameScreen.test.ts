@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GameScreen } from './GameScreen';
 import { getStorage } from '../../storage';
+import { addTrainingPosition, getTrainingQueue } from '../../training/index';
 
 // Mock das visualizações DOM pesadas do Chessground
 vi.mock('../ChessBoard', () => {
@@ -124,6 +125,41 @@ describe('GameScreen - BUG-01 (Fluxo de Tentar de Novo e Cancelamento)', () => {
     expect(game.getHistory().length).toBe(0);
     expect(game.getFen()).toBe(initialFen);
     expect(game.turn()).toBe('w');
+
+    screen.destroy();
+  });
+
+  it('BUG-07: remove erro da fila de treino ao clicar em tentar de novo', () => {
+    const container = createMockContainer();
+    const screen = new GameScreen(container, {
+      onGameOver: vi.fn(),
+      onExit: vi.fn(),
+    });
+
+    const game = (screen as any).game;
+    const initialFen = game.getFen();
+    (screen as any).lastFenBeforePlayerMove = initialFen;
+
+    // Simula lance com erro grave adicionado à fila de treino
+    game.makeMove('f2', 'f3');
+    addTrainingPosition({
+      fen: initialFen,
+      bestMove: 'e2e4',
+      bestMoveSan: 'e4',
+      playerMove: 'f3',
+      explanation: 'Erro grave',
+      errorType: 'erro_grave',
+      cpLoss: 300,
+      gameIndex: 1,
+    });
+
+    expect(getTrainingQueue().length).toBe(1);
+
+    // O jogador clica em "Tentar de novo"
+    screen.handleRetryMove();
+
+    // A posição de erro desfeita NÃO deve permanecer poluindo a fila de treino
+    expect(getTrainingQueue().length).toBe(0);
 
     screen.destroy();
   });
