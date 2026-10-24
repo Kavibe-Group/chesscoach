@@ -106,11 +106,11 @@ export function getQualityLabel(quality: MoveQuality): string {
   return QUALITY_CONFIG[quality].label;
 }
 
-function isMateFavorable(mate: number | null): boolean {
+function isMateFavorable(mate: number | null): mate is number {
   return mate !== null && mate > 0;
 }
 
-function isMateUnfavorable(mate: number | null): boolean {
+function isMateUnfavorable(mate: number | null): mate is number {
   return mate !== null && mate < 0;
 }
 
