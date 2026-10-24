@@ -57,6 +57,42 @@ export function eloToEngineConfig(playerElo: number): EngineConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Worker interface for browser and Node.js testing
+// ---------------------------------------------------------------------------
+
+export interface IWorker {
+  postMessage(message: string): void;
+  onmessage: ((event: { data: string }) => void) | null;
+  terminate(): void;
+}
+
+class BrowserWorkerWrapper implements IWorker {
+  private worker: Worker;
+
+  constructor(scriptUrl: string) {
+    this.worker = new Worker(scriptUrl);
+  }
+
+  postMessage(msg: string): void {
+    this.worker.postMessage(msg);
+  }
+
+  set onmessage(handler: ((event: { data: string }) => void) | null) {
+    this.worker.onmessage = handler
+      ? (ev: MessageEvent) => handler({ data: String(ev.data) })
+      : null;
+  }
+
+  get onmessage(): null {
+    return null;
+  }
+
+  terminate(): void {
+    this.worker.terminate();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // StockfishEngine
 // ---------------------------------------------------------------------------
 
@@ -64,10 +100,15 @@ const DEFAULT_EVAL_DEPTH = 15;
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export class StockfishEngine {
-  private worker: Worker | null = null;
+  private worker: IWorker | null = null;
   private messageHandlers: ((line: string) => void)[] = [];
   private ready = false;
   private currentConfig: EngineConfig | null = null;
+  private workerFactory?: () => IWorker;
+
+  constructor(workerFactory?: () => IWorker) {
+    this.workerFactory = workerFactory;
+  }
 
   // -----------------------------------------------------------------------
   // Lifecycle
@@ -82,24 +123,31 @@ export class StockfishEngine {
       return;
     }
 
-    this.worker = new Worker('/stockfish-19-lite-single.js');
+    if (this.workerFactory) {
+      this.worker = this.workerFactory();
+    } else if (typeof Worker !== 'undefined') {
+      this.worker = new BrowserWorkerWrapper('/stockfish-19-lite-single.js');
+    } else {
+      throw new Error('Ambiente sem suporte a Web Worker. Forneça uma fábrica de workers.');
+    }
 
-    this.worker.onmessage = (event: MessageEvent) => {
+    if (!this.worker) {
+      throw new Error('Falha ao inicializar o worker do Stockfish.');
+    }
+
+    this.worker.onmessage = (event: { data: string }) => {
       const line: string =
         typeof event.data === 'string' ? event.data : String(event.data);
 
-      // Notifica todos os handlers registrados
-      for (const handler of this.messageHandlers) {
+      // Notifica todos os handlers registrados (cópia defensiva)
+      for (const handler of [...this.messageHandlers]) {
         handler(line);
       }
     };
 
     // Handshake UCI
-    this.send('uci');
-    await this.waitFor(/^uciok$/);
-
-    this.send('isready');
-    await this.waitFor(/^readyok$/);
+    await this.sendAndWait('uci', /^uciok$/);
+    await this.sendAndWait('isready', /^readyok$/);
 
     this.ready = true;
   }
@@ -136,6 +184,20 @@ export class StockfishEngine {
       throw new Error('Stockfish worker não inicializado. Chame init() primeiro.');
     }
     this.worker.postMessage(cmd);
+  }
+
+  /**
+   * Registra a espera por um padrão e envia o comando.
+   * Evita race condition se a resposta for síncrona ou muito rápida.
+   */
+  private sendAndWait(
+    cmd: string,
+    pattern: RegExp,
+    timeout: number = DEFAULT_TIMEOUT_MS,
+  ): Promise<string> {
+    const promise = this.waitFor(pattern, timeout);
+    this.send(cmd);
+    return promise;
   }
 
   /**
@@ -203,8 +265,7 @@ export class StockfishEngine {
     this.currentConfig = { ...config };
 
     // Garante que o engine processou as opções
-    this.send('isready');
-    await this.waitFor(/^readyok$/);
+    await this.sendAndWait('isready', /^readyok$/);
   }
 
   // -----------------------------------------------------------------------
@@ -230,6 +291,8 @@ export class StockfishEngine {
     const depth = config?.depth ?? this.currentConfig?.depth;
     const moveTime = config?.moveTime ?? this.currentConfig?.moveTime;
 
+    const bestMovePromise = this.waitFor(/^bestmove\s/);
+
     if (moveTime !== undefined) {
       this.send(`go movetime ${moveTime}`);
     } else if (depth !== undefined) {
@@ -239,7 +302,7 @@ export class StockfishEngine {
       this.send('go movetime 1000');
     }
 
-    const bestMoveLine = await this.waitFor(/^bestmove\s/);
+    const bestMoveLine = await bestMovePromise;
     const match = bestMoveLine.match(/^bestmove\s(\S+)/);
 
     if (!match) {
@@ -281,8 +344,7 @@ export class StockfishEngine {
     // Força máxima para análise
     this.send('setoption name Skill Level value 20');
     this.send('setoption name UCI_LimitStrength value false');
-    this.send('isready');
-    await this.waitFor(/^readyok$/);
+    await this.sendAndWait('isready', /^readyok$/);
 
     this.send(`position fen ${fen}`);
 
@@ -327,10 +389,10 @@ export class StockfishEngine {
 
     this.messageHandlers.push(infoHandler);
 
-    // Inicia busca
+    // Inicia busca registrando espera por bestmove antes de enviar comando
+    const bestMovePromise = this.waitFor(/^bestmove\s/);
     this.send(`go depth ${depth}`);
-
-    const bestMoveLine = await this.waitFor(/^bestmove\s/);
+    const bestMoveLine = await bestMovePromise;
 
     // Remove o handler de info
     const handlerIdx = this.messageHandlers.indexOf(infoHandler);
@@ -382,8 +444,7 @@ export class StockfishEngine {
     this.ensureReady();
 
     this.send('ucinewgame');
-    this.send('isready');
-    await this.waitFor(/^readyok$/);
+    await this.sendAndWait('isready', /^readyok$/);
   }
 
   // -----------------------------------------------------------------------
