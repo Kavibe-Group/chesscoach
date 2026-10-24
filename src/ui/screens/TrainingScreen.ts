@@ -135,8 +135,9 @@ export class TrainingScreen {
     });
 
     this.container.querySelector('#btn-next-training')?.addEventListener('click', () => {
-      // Atualiza fila de ativos
+      // Atualiza fila de ativos e avança para o próximo exercício
       this.queue = getActiveTrainingPositions();
+      this.currentIdx++;
       if (this.currentIdx >= this.queue.length) {
         this.currentIdx = 0;
       }

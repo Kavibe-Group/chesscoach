@@ -67,8 +67,8 @@ Este documento registra todos os bugs identificados, como reproduzir, a causa ra
 - **Onde:** `src/ui/screens/TrainingScreen.ts`
 - **Como reproduzir:** Ter vários erros na fila de treino. Ao resolver ou errar o primeiro exercício e clicar em "Próximo exercício", a mesma posição é recarregada porque o índice `currentIdx` nunca era incrementado.
 - **Causa provável:** Ausência de `this.currentIdx++` no evento do botão `btn-next-training`.
-- **Teste de regressão:** `src/training/TrainingManager.test.ts`
-- **Status:** Aberto
+- **Teste de regressão:** `src/ui/screens/TrainingScreen.test.ts` (`BUG-06: incrementa currentIdx ao clicar em próximo exercício quando o exercício não foi dominado`)
+- **Status:** Resolvido (commit fix(BUG-06))
 
 ---
 
