@@ -4,8 +4,10 @@ import {
   getActiveTrainingPositions,
   recordTrainingAttempt,
   getMasteredCount,
+  getDailyPuzzles,
   type TrainingPosition,
 } from '../../training/index.js';
+import { CATEGORY_LABELS } from '../../analysis/MoveAnalyzer.js';
 
 export interface TrainingScreenEvents {
   onBack: () => void;
@@ -24,7 +26,8 @@ export class TrainingScreen {
     this.container = container;
     this.events = events;
     this.game = new GameController();
-    this.queue = getActiveTrainingPositions();
+    const active = getActiveTrainingPositions();
+    this.queue = active.length > 0 ? active : getDailyPuzzles(5);
     this.render();
   }
 
@@ -36,22 +39,17 @@ export class TrainingScreen {
         <div class="training-screen empty">
           <header class="screen-header">
             <button type="button" class="btn btn-ghost" id="btn-back-training">← Voltar</button>
-            <h1>Treinar Meus Erros</h1>
+            <h1>Treino de Puzzles & Erros</h1>
           </header>
-
-          <div class="card empty-training-card">
+          <div class="empty-training card">
             <div class="empty-icon">🎉</div>
-            <h2>Fila de Treino Vazia!</h2>
-            <p>
-              Você dominou todos os seus erros anteriores ou ainda não acumulou erros nas partidas.
-              Jogue novas partidas contra o motor para que o treinador capture os seus momentos críticos!
-            </p>
-            <div class="mastered-stats-pill">
-              ⭐ Total de posições dominadas: <strong>${masteredCount}</strong>
+            <h2>Fila de Treino em Dia!</h2>
+            <p>Você não tem erros pendentes para revisar no momento.</p>
+            <p class="subtext">Jogue mais partidas contra o motor ou volte amanhã para novos puzzles diários!</p>
+            <div class="training-stats">
+              <span>🏆 ${masteredCount} posições dominadas no total</span>
             </div>
-            <button type="button" class="btn btn-primary btn-lg" id="btn-empty-play">
-              ⚔️ Jogar uma partida agora
-            </button>
+            <button type="button" class="btn btn-primary" id="btn-back-home-empty">Voltar ao Menu</button>
           </div>
         </div>
       `;
@@ -59,7 +57,7 @@ export class TrainingScreen {
       this.container.querySelector('#btn-back-training')?.addEventListener('click', () => {
         this.events.onBack();
       });
-      this.container.querySelector('#btn-empty-play')?.addEventListener('click', () => {
+      this.container.querySelector('#btn-back-home-empty')?.addEventListener('click', () => {
         this.events.onBack();
       });
       return;
@@ -75,6 +73,7 @@ export class TrainingScreen {
 
     const turn = this.game.turn() === 'w' ? 'Brancas' : 'Pretas';
     const orientation = this.game.turn() === 'w' ? 'white' : 'black';
+    const categoryName = pos.category ? (CATEGORY_LABELS[pos.category] || pos.category) : '';
 
     this.container.innerHTML = `
       <div class="training-screen active">
@@ -97,14 +96,26 @@ export class TrainingScreen {
           <!-- Informações e Feedback do Exercício -->
           <div class="side-column card">
             <div class="training-info">
-              <span class="turn-indicator">Sua vez (${turn})</span>
-              <h2>Encontre o melhor lance</h2>
-              <div class="mistake-reminder">
-                <span>Na sua partida você jogou: <strong>${pos.playerMove}</strong></span>
+              <div class="training-tags-row">
+                <span class="turn-indicator">Sua vez (${turn})</span>
+                ${categoryName ? `<span class="category-badge category-${pos.category}">${categoryName}</span>` : ''}
+                ${pos.isCuratedPuzzle ? `<span class="category-badge category-posicional">🎯 Puzzle Diário</span>` : ''}
               </div>
+
+              <h2>Encontre o melhor lance</h2>
+
+              ${pos.playerMove && pos.playerMove !== '—' ? `
+                <div class="mistake-reminder">
+                  <span>Na sua partida você jogou: <strong>${pos.playerMove}</strong></span>
+                </div>
+              ` : ''}
+
               <div class="mastery-tracker">
-                <span class="mastery-label">Progresso para dominar:</span>
-                <span class="mastery-stars">${'⭐'.repeat(pos.consecutiveCorrect)}${'☆'.repeat(2 - pos.consecutiveCorrect)} (2 acertos seguidos)</span>
+                <span class="mastery-label">Repetição Espaçada (SRS):</span>
+                <span class="mastery-stars">
+                  ${'⭐'.repeat(Math.min(2, pos.consecutiveCorrect))}${'☆'.repeat(Math.max(0, 2 - pos.consecutiveCorrect))}
+                  (Nível ${pos.srsLevel ?? 0}/4 · ${pos.mastered ? '🏆 Dominado' : '2 acertos para dominar'})
+                </span>
               </div>
             </div>
 
@@ -136,7 +147,8 @@ export class TrainingScreen {
 
     this.container.querySelector('#btn-next-training')?.addEventListener('click', () => {
       // Atualiza fila de ativos e avança para o próximo exercício
-      this.queue = getActiveTrainingPositions();
+      const active = getActiveTrainingPositions();
+      this.queue = active.length > 0 ? active : getDailyPuzzles(5);
       this.currentIdx++;
       if (this.currentIdx >= this.queue.length) {
         this.currentIdx = 0;
@@ -163,11 +175,16 @@ export class TrainingScreen {
       feedbackEl.className = 'assessment-feedback success';
       feedbackEl.innerHTML = `
         <div class="feedback-badge success">
-          ${isMastered ? '🏆 Dominado! Posição dominada com sucesso!' : '✓ Excelente! Você acertou!'}
+          ${isMastered ? '🏆 Dominado! Posição consolidada com sucesso!' : '✓ Excelente! Você acertou!'}
         </div>
         <p>Lance correto: <strong>${pos.bestMoveSan}</strong></p>
         <p class="explanation-subtext">${pos.explanation}</p>
       `;
+
+      // Seta verde no lance correto
+      const from = pos.bestMove.substring(0, 2);
+      const to = pos.bestMove.substring(2, 4);
+      this.board?.showBestMove(from, to);
     } else {
       feedbackEl.className = 'assessment-feedback mistake';
       feedbackEl.innerHTML = `

@@ -6,6 +6,7 @@ import {
   getActiveTrainingPositions,
   getMasteredCount,
   getTotalTrainingCount,
+  getDailyPuzzles,
 } from './TrainingManager';
 import {
   createProfile,
@@ -132,5 +133,49 @@ describe('TrainingManager & Progressão (Fase 4 - Treino dos Próprios Erros)', 
     const updated = getProfile();
     const dominant = getDominantErrorCategory(updated!);
     expect(dominant).toBe('erro_grave');
+  });
+
+  it('Fase 3: avança níveis de repetição espaçada (SRS) e reseta em caso de erro', () => {
+    const fen = '8/8/8/8/8/8/4k3/4K2R w - - 0 1';
+    addTrainingPosition({
+      fen,
+      bestMove: 'h1h2',
+      bestMoveSan: 'Rh2',
+      playerMove: 'h1g1',
+      explanation: 'Torre na segunda fileira.',
+      errorType: 'erro',
+      cpLoss: 200,
+      gameIndex: 1,
+      category: 'posicional',
+    });
+
+    const queue = getTrainingQueue();
+    const id = queue[0].id;
+
+    // Inicialmente no nível 0
+    expect(queue[0].srsLevel).toBe(0);
+
+    // 1º acerto -> nível 1
+    let pos = recordTrainingAttempt(id, true);
+    expect(pos?.srsLevel).toBe(1);
+    expect(pos?.nextReviewDate).toBeDefined();
+
+    // 2º acerto -> nível 2 e masterizado
+    pos = recordTrainingAttempt(id, true);
+    expect(pos?.srsLevel).toBe(2);
+    expect(pos?.mastered).toBe(true);
+
+    // Erro subsequente -> reseta nível para 0
+    pos = recordTrainingAttempt(id, false);
+    expect(pos?.srsLevel).toBe(0);
+    expect(pos?.consecutiveCorrect).toBe(0);
+  });
+
+  it('Fase 3: getDailyPuzzles completa a meta diária de 5 puzzles mesmo com poucos erros reais', () => {
+    // Fila vazia
+    const daily = getDailyPuzzles(5);
+    expect(daily.length).toBe(5);
+    // Como a fila estava vazia, completou com o acervo curado
+    expect(daily.every(p => p.bestMove && p.fen)).toBe(true);
   });
 });

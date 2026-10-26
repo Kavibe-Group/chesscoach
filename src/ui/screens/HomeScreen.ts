@@ -103,7 +103,7 @@ export class HomeScreen {
 
             <div class="profile-stats-row">
               <div class="stat-pill">
-                <span class="stat-label">Precisão Média</span>
+                <span class="stat-label">Precisão</span>
                 <span class="stat-value">${avgAccuracy}%</span>
               </div>
               <div class="stat-pill">
@@ -111,8 +111,12 @@ export class HomeScreen {
                 <span class="stat-value">${profile.gamesPlayed}</span>
               </div>
               <div class="stat-pill">
-                <span class="stat-label">Erros Dominados</span>
-                <span class="stat-value">${masteredCount}</span>
+                <span class="stat-label">Sequência</span>
+                <span class="stat-value">🔥 ${profile.streakDays || 1}d</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-label">Dominados</span>
+                <span class="stat-value">🏆 ${masteredCount}</span>
               </div>
             </div>
 
@@ -135,8 +139,8 @@ export class HomeScreen {
             </button>
 
             <button type="button" class="btn btn-secondary btn-lg" id="btn-training">
-              🧩 Treinar meus erros
-              <span class="badge-count">${activeErrors.length}</span>
+              🧩 Puzzles & Treino de Erros
+              <span class="badge-count">${activeErrors.length > 0 ? `${activeErrors.length} erros` : '5 diários'}</span>
             </button>
 
             <div class="secondary-actions">

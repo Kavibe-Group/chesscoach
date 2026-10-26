@@ -12,6 +12,8 @@ export interface PlayerProfile {
   errorCategories: Record<string, number>; // category -> count
   createdAt: string;
   updatedAt: string;
+  streakDays?: number;
+  lastActiveDate?: string;
 }
 
 export interface GameStats {
@@ -53,6 +55,33 @@ export function getProfile(): PlayerProfile | null {
   }
 }
 
+export function recordDailyActivity(profile: PlayerProfile): PlayerProfile {
+  const today = new Date().toISOString().slice(0, 10);
+  const lastDate = profile.lastActiveDate ? profile.lastActiveDate.slice(0, 10) : null;
+
+  if (!lastDate) {
+    profile.streakDays = 1;
+    profile.lastActiveDate = today;
+  } else if (lastDate === today) {
+    // Mantém o streak atual
+    if (!profile.streakDays) profile.streakDays = 1;
+  } else {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    if (lastDate === yesterdayStr) {
+      profile.streakDays = (profile.streakDays || 1) + 1;
+    } else {
+      profile.streakDays = 1;
+    }
+    profile.lastActiveDate = today;
+  }
+
+  saveProfile(profile);
+  return profile;
+}
+
 export function saveProfile(profile: PlayerProfile): void {
   profile.updatedAt = new Date().toISOString();
   getStorage().setItem(PROFILE_KEY, JSON.stringify(profile));
@@ -74,6 +103,8 @@ export function createProfile(estimatedElo: number): PlayerProfile {
 }
 
 export function updateEloAfterGame(profile: PlayerProfile, gameStats: GameStats): PlayerProfile {
+  recordDailyActivity(profile);
+
   // Adapt Elo based on result + ACPL
   // Rise/fall slowly: 15-30 points per game
   const acplTarget = getAcplTarget(profile.estimatedElo);
