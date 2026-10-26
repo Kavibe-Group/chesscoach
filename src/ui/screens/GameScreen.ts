@@ -177,10 +177,8 @@ export class GameScreen {
     this.feedbackCard.onToggleArrow(shown => {
       if (shown) {
         const analysis = this.feedbackCard?.getCurrentAnalysis();
-        if (analysis && analysis.bestMove) {
-          const from = analysis.bestMove.substring(0, 2);
-          const to = analysis.bestMove.substring(2, 4);
-          this.board?.showBestMove(from, to);
+        if (analysis) {
+          this.board?.showAnalysisShapes(analysis);
         }
       } else {
         this.board?.clearShapes();

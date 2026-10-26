@@ -6,6 +6,7 @@ import type { DrawShape } from 'chessground/draw';
 import type { Square } from 'chess.js';
 import { GameController } from '../game/GameController.js';
 import { PromotionModal } from './PromotionModal.js';
+import type { TacticalShape, MoveAnalysis } from '../analysis/MoveAnalyzer.js';
 
 export interface MoveEvent {
   from: string;
@@ -168,6 +169,33 @@ export class ChessBoard {
       brush: 'green',
     };
     this.cg.setAutoShapes([shape]);
+  }
+
+  /**
+   * Exibe todas as formas e setas táticas geradas pelo analisador
+   * (verde para melhor lance, vermelho para ameaça adversária, círculos em peças críticas)
+   */
+  showTacticalShapes(shapes: TacticalShape[]): void {
+    const drawShapes: DrawShape[] = shapes.map(s => ({
+      orig: s.orig as Key,
+      dest: s.dest ? (s.dest as Key) : undefined,
+      brush: s.brush,
+    }));
+    this.cg.setAutoShapes(drawShapes);
+  }
+
+  /**
+   * Exibe a análise tática visual completa da jogada
+   */
+  showAnalysisShapes(analysis: MoveAnalysis): void {
+    if (analysis.shapes && analysis.shapes.length > 0) {
+      this.showTacticalShapes(analysis.shapes);
+    } else if (analysis.bestMove && analysis.bestMove.length >= 4) {
+      this.showBestMove(
+        analysis.bestMove.substring(0, 2),
+        analysis.bestMove.substring(2, 4)
+      );
+    }
   }
 
   /**

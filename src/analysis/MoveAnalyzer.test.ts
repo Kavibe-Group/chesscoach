@@ -228,4 +228,74 @@ describe('MoveAnalyzer (Fase 2 - Feedback pós-lance e Padrões)', () => {
     expect(analysis.isRetryable).toBe(true);
     expect(analysis.explanation).toContain('Havia mate em 1 com Qxf7#');
   });
+
+  it('Fase 1: gera setas visuais e detecta garfo tático punitivo do adversário', () => {
+    // Posição: Brancas jogam lance ruim (ex: a2a3) e permitem que o Cavalo preto em c6
+    // dê um garfo em d4 atacando a Dama em e2 e a Torre em c2 (ou Rei e Torre)
+    // Exemplo: Rei em e1, Torre em a1. Cavalo em d4 ataca c2 ou e2.
+    // FEN onde c6d4 ataca e2 (Dama) e b3 (Bispo)
+    const ctx: PositionContext = {
+      fenBefore: 'r3k2r/pppq1ppp/2n5/4p3/1b2P3/1B3N2/PPPPQPPP/R1B1K2R w KQkq - 0 10',
+      fenAfter: 'r3k2r/pppq1ppp/2n5/4p3/1b2P3/PB3N2/1PPPQPPP/R1B1K2R b KQkq - 0 10',
+      moveNumber: 10,
+      playerColor: 'w',
+      evalBefore: 0,
+      mateBefore: null,
+      bestMoveUci: 'e1g1',
+      bestMoveSan: 'O-O',
+      pvBefore: ['e1g1', 'c6d4'],
+      pvAfter: ['c6d4', 'e2d1', 'd4b3'],
+      evalAfter: -320, // Perdeu peça menor no garfo
+      mateAfter: null,
+      playerMoveSan: 'a3',
+      playerMoveUci: 'a2a3',
+      fen: 'r3k2r/pppq1ppp/2n5/4p3/1b2P3/PB3N2/1PPPQPPP/R1B1K2R b KQkq - 0 10',
+    };
+
+    const analysis = analyzeMoveQuality(ctx);
+    expect(analysis.quality).toBe('erro_grave');
+    expect(analysis.category).toBe('garfo');
+    expect(analysis.categoryLabel).toBe('Garfo Tático');
+    expect(analysis.explanation).toContain('Garfo tático');
+    // Setas:
+    // 1. Seta verde do melhor lance (e1 -> g1)
+    expect(analysis.shapes.some(s => s.orig === 'e1' && s.dest === 'g1' && s.brush === 'green')).toBe(true);
+    // 2. Seta vermelha do garfo adversário (c6 -> d4)
+    expect(analysis.shapes.some(s => s.orig === 'c6' && s.dest === 'd4' && s.brush === 'red')).toBe(true);
+    // 3. Refutação do motor convertida para SAN
+    expect(analysis.refutationPv.length).toBeGreaterThan(0);
+    expect(analysis.refutationPv[0].san).toBe('Nd4');
+  });
+
+  it('Fase 1: gera setas para peça pendurada (verde para melhor lance, vermelha para ameaça)', () => {
+    const ctx: PositionContext = {
+      fenBefore: '4k3/8/8/3p4/4N3/8/P7/4K3 w - - 0 1',
+      fenAfter: '4k3/8/8/3p4/4N3/P7/8/4K3 b - - 0 1',
+      moveNumber: 10,
+      playerColor: 'w',
+      evalBefore: 0,
+      mateBefore: null,
+      bestMoveUci: 'e4f6',
+      bestMoveSan: 'Nf6+',
+      pvBefore: ['e4f6', 'e8f7'],
+      pvAfter: ['d5e4'],
+      evalAfter: -350,
+      mateAfter: null,
+      playerMoveSan: 'a3',
+      playerMoveUci: 'a2a3',
+      fen: '4k3/8/8/3p4/4N3/P7/8/4K3 b - - 0 1',
+    };
+
+    const analysis = analyzeMoveQuality(ctx);
+    expect(analysis.category).toBe('peca_pendurada');
+    expect(analysis.categoryLabel).toBe('Peça Pendurada');
+    // Seta verde para o lance correto (e4 -> f6)
+    expect(analysis.shapes.some(s => s.orig === 'e4' && s.dest === 'f6' && s.brush === 'green')).toBe(true);
+    // Seta vermelha para a captura do adversário (d5 -> e4)
+    expect(analysis.shapes.some(s => s.orig === 'd5' && s.dest === 'e4' && s.brush === 'red')).toBe(true);
+    // Círculo vermelho na peça deixada desprotegida (e4)
+    expect(analysis.shapes.some(s => s.orig === 'e4' && !s.dest && s.brush === 'red')).toBe(true);
+    // Refutation PV
+    expect(analysis.refutationPv[0].san).toBe('dxe4');
+  });
 });

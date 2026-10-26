@@ -5,17 +5,41 @@
  *
  * Toda a lógica de regras vem do chess.js.
  * Toda a lógica de avaliação vem do Stockfish.
- * Explicações geradas somente a partir de fatos verificáveis (lista fechada).
+ * Explicações geradas somente a partir de fatos verificáveis com suporte a
+ * setas visuais e categorização tática avançada.
  */
 
 import { Chess } from 'chess.js';
-import type { Square, PieceSymbol } from 'chess.js';
+import type { Square, PieceSymbol, Color } from 'chess.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export type MoveQuality = 'excelente' | 'bom' | 'imprecisao' | 'erro' | 'erro_grave';
+
+export type TacticalCategory =
+  | 'mate_perdido'
+  | 'mate_ameacado'
+  | 'peca_pendurada'
+  | 'garfo'
+  | 'cravada'
+  | 'troca_desfavoravel'
+  | 'captura_perdida'
+  | 'seguranca_rei'
+  | 'desenvolvimento'
+  | 'posicional';
+
+export interface TacticalShape {
+  orig: string;
+  dest?: string;
+  brush: 'green' | 'red' | 'yellow' | 'blue';
+}
+
+export interface PvMove {
+  uci: string;
+  san: string;
+}
 
 export interface MoveAnalysis {
   quality: MoveQuality;
@@ -43,6 +67,14 @@ export interface MoveAnalysis {
   playerMoveUci: string;
   /** Verdadeiro para 'erro' ou 'erro_grave' */
   isRetryable: boolean;
+  /** Categoria tática do lance */
+  category: TacticalCategory;
+  /** Rótulo legível da categoria tática */
+  categoryLabel: string;
+  /** Formas e setas para renderização visual no tabuleiro */
+  shapes: TacticalShape[];
+  /** Variante de refutação em lances legíveis */
+  refutationPv: PvMove[];
 }
 
 export interface PositionContext {
@@ -83,6 +115,19 @@ const QUALITY_CONFIG: Record<MoveQuality, { label: string; color: string }> = {
   erro_grave: { label: 'Erro Grave', color: '#ca3431' },
 };
 
+export const CATEGORY_LABELS: Record<TacticalCategory, string> = {
+  mate_perdido: 'Mate Perdido',
+  mate_ameacado: 'Ameaça de Mate',
+  peca_pendurada: 'Peça Pendurada',
+  garfo: 'Garfo Tático',
+  cravada: 'Cravada',
+  troca_desfavoravel: 'Troca Desfavorável',
+  captura_perdida: 'Captura Perdida',
+  seguranca_rei: 'Segurança do Rei',
+  desenvolvimento: 'Desenvolvimento',
+  posicional: 'Posicional',
+};
+
 /** Valor sentinela de perda de cp para situações de mate */
 const MATE_CP_LOSS = 9999;
 
@@ -96,6 +141,24 @@ const PIECE_NAMES_PT: Record<PieceSymbol, string> = {
   r: 'a torre',
   q: 'a dama',
   k: 'o rei',
+};
+
+const PIECE_NAMES_CAP_PT: Record<PieceSymbol, string> = {
+  p: 'Peão',
+  n: 'Cavalo',
+  b: 'Bispo',
+  r: 'Torre',
+  q: 'Dama',
+  k: 'Rei',
+};
+
+const PIECE_VALUES: Record<PieceSymbol, number> = {
+  p: 1,
+  n: 3,
+  b: 3,
+  r: 5,
+  q: 9,
+  k: 1000,
 };
 
 // ---------------------------------------------------------------------------
@@ -167,27 +230,103 @@ function downgradeSeverity(quality: MoveQuality): MoveQuality {
   return SEVERITY_ORDER[idx - 1]!;
 }
 
+/**
+ * Converte lista de lances UCI em lances SAN a partir de uma FEN inicial
+ */
+function convertPvToSan(fen: string, uciMoves: string[]): PvMove[] {
+  const result: PvMove[] = [];
+  try {
+    const game = new Chess(fen);
+    for (const uci of uciMoves) {
+      if (!uci || uci.length < 4) break;
+      const from = uci.substring(0, 2);
+      const to = uci.substring(2, 4);
+      const promotion = uci.length > 4 ? uci[4] : undefined;
+      const move = game.move({ from, to, promotion });
+      if (!move) break;
+      result.push({ uci, san: move.san });
+    }
+  } catch {
+    // Retorna o que conseguiu converter
+  }
+  return result;
+}
+
 // ---------------------------------------------------------------------------
-// Verifiable Pattern Detection (Lista Fechada da Seção 5)
+// Tactical Pattern Detection & Visual Shapes
 // ---------------------------------------------------------------------------
 
-function detectPatternExplanation(
+interface PatternResult {
+  category: TacticalCategory;
+  explanation: string;
+  shapes: TacticalShape[];
+}
+
+function detectTacticalDetails(
   quality: MoveQuality,
   cpLoss: number,
   ctx: PositionContext,
-): string {
-  const opponentColor = ctx.playerColor === 'w' ? 'b' : 'w';
+): PatternResult {
+  const opponentColor: Color = ctx.playerColor === 'w' ? 'b' : 'w';
+  const shapes: TacticalShape[] = [];
+
+  // Seta verde para o melhor lance sempre presente quando disponível
+  if (ctx.bestMoveUci && ctx.bestMoveUci.length >= 4) {
+    shapes.push({
+      orig: ctx.bestMoveUci.substring(0, 2),
+      dest: ctx.bestMoveUci.substring(2, 4),
+      brush: 'green',
+    });
+  }
 
   // 1. Mate perdido: havia mate em N e ele não jogou o melhor lance
   if (isMateFavorable(ctx.mateBefore) && ctx.playerMoveUci !== ctx.bestMoveUci) {
     if (!isMateFavorable(ctx.mateAfter) || ctx.mateBefore === 1 || (ctx.mateAfter !== null && ctx.mateAfter > ctx.mateBefore)) {
-      return `Havia mate em ${ctx.mateBefore} com ${ctx.bestMoveSan}, mas você não jogou!`;
+      // Círculo amarelo na casa destino do lance de mate
+      shapes.push({ orig: ctx.bestMoveUci.substring(2, 4), brush: 'yellow' });
+      return {
+        category: 'mate_perdido',
+        explanation: `Havia mate em ${ctx.mateBefore} com ${ctx.bestMoveSan}, mas você não jogou!`,
+        shapes,
+      };
     }
   }
 
   // 2. Mate permitido: seu lance permite mate pelo adversário
   if (isMateUnfavorable(ctx.mateAfter) && !isMateUnfavorable(ctx.mateBefore)) {
-    return 'Erro grave! Seu lance permite mate pelo adversário.';
+    // Seta vermelha da resposta que aplica o mate
+    const replyUci = ctx.pvAfter && ctx.pvAfter.length > 0 ? ctx.pvAfter[0] : null;
+    if (replyUci && replyUci.length >= 4) {
+      shapes.push({
+        orig: replyUci.substring(0, 2),
+        dest: replyUci.substring(2, 4),
+        brush: 'red',
+      });
+    }
+    // Círculo vermelho no rei do jogador
+    try {
+      const chessAfter = new Chess(ctx.fenAfter);
+      const board = chessAfter.board();
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = board[r][c];
+          if (piece && piece.type === 'k' && piece.color === ctx.playerColor) {
+            shapes.push({ orig: piece.square, brush: 'red' });
+          }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    const mateInN = Math.abs(ctx.mateAfter!);
+    return {
+      category: 'mate_ameacado',
+      explanation: mateInN === 1
+        ? 'Erro grave! Seu lance permite mate pelo adversário.'
+        : `Erro grave! Seu lance permite mate pelo adversário em ${mateInN} lances.`,
+      shapes,
+    };
   }
 
   // Para lances com erro (imprecisão, erro, erro_grave)
@@ -196,26 +335,89 @@ function detectPatternExplanation(
       const chessBefore = new Chess(ctx.fenBefore);
       const chessAfter = new Chess(ctx.fenAfter);
 
-      // 3. Peça deixada desprotegida e capturável (e a melhor resposta do motor a punia)
-      // Usa pvAfter[0] (resposta do adversário ao lance real do jogador)
+      // Resposta principal do motor ao lance do jogador
       const replyUci = (ctx.pvAfter && ctx.pvAfter.length > 0)
         ? ctx.pvAfter[0]
         : (ctx.pvBefore && ctx.pvBefore.length > 1 ? ctx.pvBefore[1] : null);
 
       if (replyUci && replyUci.length >= 4) {
+        const replyFrom = replyUci.substring(0, 2) as Square;
         const replyTo = replyUci.substring(2, 4) as Square;
-        const pieceAtTarget = chessAfter.get(replyTo);
+        const replyPromo = replyUci.length > 4 ? replyUci[4] : undefined;
 
+        // Simula o tabuleiro após a resposta do adversário
+        const chessAfterReply = new Chess(ctx.fenAfter);
+        const replyMoveObj = chessAfterReply.move({ from: replyFrom, to: replyTo, promotion: replyPromo });
+
+        // 3. Detecção de Garfo (Fork / Ataque Duplo do adversário)
+        if (replyMoveObj) {
+          const replyPiece = chessAfterReply.get(replyTo);
+          if (replyPiece) {
+            const attackedSquares: Square[] = [];
+            const attackedPieces: { sq: Square; type: PieceSymbol; val: number }[] = [];
+
+            // Varre peças do jogador para ver quais são atacadas por replyTo
+            const boardAfterReply = chessAfterReply.board();
+            for (let r = 0; r < 8; r++) {
+              for (let c = 0; c < 8; c++) {
+                const sqPiece = boardAfterReply[r][c];
+                if (sqPiece && sqPiece.color === ctx.playerColor) {
+                  const attackers = chessAfterReply.attackers(sqPiece.square, opponentColor);
+                  if (attackers.includes(replyTo)) {
+                    attackedSquares.push(sqPiece.square);
+                    attackedPieces.push({
+                      sq: sqPiece.square,
+                      type: sqPiece.type,
+                      val: PIECE_VALUES[sqPiece.type],
+                    });
+                  }
+                }
+              }
+            }
+
+            // Garfo se ataca 2 ou mais peças valiosas (valor >= 3 ou rei)
+            const highValAttacks = attackedPieces.filter(p => p.val >= 3 || p.type === 'k');
+            if (attackedPieces.length >= 2 && highValAttacks.length >= 1 && cpLoss >= 120) {
+              // Seta vermelha do lance do garfo
+              shapes.push({ orig: replyFrom, dest: replyTo, brush: 'red' });
+              // Setas vermelhas para os dois alvos principais
+              for (const target of attackedPieces.slice(0, 2)) {
+                shapes.push({ orig: replyTo, dest: target.sq, brush: 'red' });
+                shapes.push({ orig: target.sq, brush: 'red' });
+              }
+
+              const t1Name = PIECE_NAMES_CAP_PT[attackedPieces[0].type];
+              const t2Name = PIECE_NAMES_CAP_PT[attackedPieces[1].type];
+              return {
+                category: 'garfo',
+                explanation: `Garfo tático! O seu lance permitiu que o adversário ataque ${t1Name} em ${attackedPieces[0].sq} e ${t2Name} em ${attackedPieces[1].sq} simultaneamente com ${replyMoveObj.san}.`,
+                shapes,
+              };
+            }
+          }
+        }
+
+        // 4. Peça deixada desprotegida e capturável (e a melhor resposta do motor a punia)
+        const pieceAtTarget = chessAfter.get(replyTo);
         if (pieceAtTarget && pieceAtTarget.color === ctx.playerColor) {
           const defenders = chessAfter.attackers(replyTo, ctx.playerColor);
           if (defenders.length === 0) {
             const pieceName = PIECE_NAMES_PT[pieceAtTarget.type] || 'sua peça';
-            return `Peça desprotegida! O seu lance deixou ${pieceName} em ${replyTo} sem defesa.`;
+            // Seta vermelha da captura do adversário
+            shapes.push({ orig: replyFrom, dest: replyTo, brush: 'red' });
+            // Círculo vermelho na peça desprotegida
+            shapes.push({ orig: replyTo, brush: 'red' });
+
+            return {
+              category: 'peca_pendurada',
+              explanation: `Peça desprotegida! O seu lance deixou ${pieceName} em ${replyTo} sem defesa.`,
+              shapes,
+            };
           }
         }
       }
 
-      // 4. Captura gratuita perdida (havia peça adversária pendurada e ele não pegou)
+      // 5. Captura gratuita perdida (havia peça adversária pendurada e ele não pegou)
       const bestMoveFrom = ctx.bestMoveUci.substring(0, 2) as Square;
       const bestMoveTo = ctx.bestMoveUci.substring(2, 4) as Square;
       const targetPieceBefore = chessBefore.get(bestMoveTo);
@@ -228,11 +430,18 @@ function detectPatternExplanation(
         const enemyDefenders = chessBefore.attackers(bestMoveTo, opponentColor);
         if (enemyDefenders.length === 0) {
           const pieceName = PIECE_NAMES_PT[targetPieceBefore.type] || 'a peça';
-          return `Captura gratuita perdida! Você podia capturar ${pieceName} em ${bestMoveTo} com ${ctx.bestMoveSan}.`;
+          // Círculo amarelo na peça pendurada que não foi capturada
+          shapes.push({ orig: bestMoveTo, brush: 'yellow' });
+
+          return {
+            category: 'captura_perdida',
+            explanation: `Captura gratuita perdida! Você podia capturar ${pieceName} em ${bestMoveTo} com ${ctx.bestMoveSan}.`,
+            shapes,
+          };
         }
       }
 
-      // 5. Material perdido no lance (troca desfavorável imediata)
+      // 6. Material perdido no lance (troca desfavorável imediata)
       const playerTo = ctx.playerMoveUci.substring(2, 4) as Square;
       const playerPieceAfter = chessAfter.get(playerTo);
       if (playerPieceAfter && playerPieceAfter.color === ctx.playerColor) {
@@ -240,7 +449,15 @@ function detectPatternExplanation(
         const myDefenders = chessAfter.attackers(playerTo, ctx.playerColor);
         if (enemyAttackers.length > 0 && myDefenders.length === 0 && cpLoss >= 100) {
           const pieceName = PIECE_NAMES_PT[playerPieceAfter.type] || 'sua peça';
-          return `Material perdido! O seu lance colocou ${pieceName} em ${playerTo} onde pode ser capturada.`;
+          // Seta vermelha do primeiro atacante para a casa da peça perdida
+          shapes.push({ orig: enemyAttackers[0], dest: playerTo, brush: 'red' });
+          shapes.push({ orig: playerTo, brush: 'red' });
+
+          return {
+            category: 'troca_desfavoravel',
+            explanation: `Material perdido! O seu lance colocou ${pieceName} em ${playerTo} onde pode ser capturada.`,
+            shapes,
+          };
         }
       }
     } catch {
@@ -248,10 +465,14 @@ function detectPatternExplanation(
     }
   }
 
-  // 6. Lance de desenvolvimento / segurança do rei na abertura (até lance 12, sem perda tática)
+  // 7. Lance de desenvolvimento / segurança do rei na abertura (até lance 12, sem perda tática)
   if (ctx.moveNumber <= 12 && cpLoss <= 30) {
     if (ctx.playerMoveSan === 'O-O' || ctx.playerMoveSan === 'O-O-O') {
-      return 'Bom lance de segurança do rei: roque realizado.';
+      return {
+        category: 'seguranca_rei',
+        explanation: 'Bom lance de segurança do rei: roque realizado.',
+        shapes,
+      };
     }
 
     // Lance de cavalo ou bispo saindo da fileira inicial
@@ -261,37 +482,69 @@ function detectPatternExplanation(
       fromSquare[1] === startRank &&
       (ctx.playerMoveSan.startsWith('N') || ctx.playerMoveSan.startsWith('B'))
     ) {
-      return 'Bom lance de desenvolvimento na abertura.';
+      return {
+        category: 'desenvolvimento',
+        explanation: 'Bom lance de desenvolvimento na abertura.',
+        shapes,
+      };
     }
   }
 
-  // 7. Lance que era o melhor ou defendia a ameaça concreta da posição
+  // 8. Lance que era o melhor ou defendia a ameaça concreta da posição
   if (quality === 'excelente' || quality === 'bom') {
     try {
       const chessBefore = new Chess(ctx.fenBefore);
       if (chessBefore.isCheck()) {
-        return 'Excelente! Defendeu o rei em xeque.';
+        return {
+          category: 'seguranca_rei',
+          explanation: 'Excelente! Defendeu o rei em xeque.',
+          shapes,
+        };
       }
     } catch {
       // Fallback
     }
 
     if (ctx.playerMoveUci === ctx.bestMoveUci || cpLoss <= 10) {
-      return 'Excelente! Este era o melhor lance.';
+      return {
+        category: 'posicional',
+        explanation: 'Excelente! Este era o melhor lance.',
+        shapes,
+      };
     }
-    return 'Bom lance. Mantém a posição.';
+    return {
+      category: 'posicional',
+      explanation: 'Bom lance. Mantém a posição.',
+      shapes,
+    };
   }
 
-  // 8. Template genérico e honesto (fora dos padrões acima)
+  // 9. Template padrão por qualidade
   switch (quality) {
     case 'imprecisao':
-      return `Imprecisão. O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`;
+      return {
+        category: 'posicional',
+        explanation: `Imprecisão. O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`,
+        shapes,
+      };
     case 'erro':
-      return `Erro. O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`;
+      return {
+        category: 'posicional',
+        explanation: `Erro. O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`,
+        shapes,
+      };
     case 'erro_grave':
-      return `Erro grave! O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`;
+      return {
+        category: 'posicional',
+        explanation: `Erro grave! O motor preferia ${ctx.bestMoveSan} — sua posição fica ${cpLoss} centipeões pior.`,
+        shapes,
+      };
     default:
-      return 'Bom lance.';
+      return {
+        category: 'posicional',
+        explanation: 'Bom lance.',
+        shapes,
+      };
   }
 }
 
@@ -312,8 +565,13 @@ export function analyzeMoveQuality(ctx: PositionContext): MoveAnalysis {
     quality = downgradeSeverity(quality);
   }
 
-  const explanation = detectPatternExplanation(quality, cpLoss, ctx);
+  const { category, explanation, shapes } = detectTacticalDetails(quality, cpLoss, ctx);
   const config = QUALITY_CONFIG[quality];
+  const categoryLabel = CATEGORY_LABELS[category];
+
+  // Converte a refutação principal do motor em lances legíveis
+  const pvRaw = ctx.pvAfter && ctx.pvAfter.length > 0 ? ctx.pvAfter.slice(0, 4) : [];
+  const refutationPv = convertPvToSan(ctx.fenAfter, pvRaw);
 
   return {
     quality,
@@ -330,5 +588,9 @@ export function analyzeMoveQuality(ctx: PositionContext): MoveAnalysis {
     playerMove: ctx.playerMoveSan,
     playerMoveUci: ctx.playerMoveUci,
     isRetryable: quality === 'erro' || quality === 'erro_grave',
+    category,
+    categoryLabel,
+    shapes,
+    refutationPv,
   };
 }

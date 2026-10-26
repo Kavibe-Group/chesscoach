@@ -628,6 +628,15 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.badges-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .quality-badge {
@@ -638,6 +647,53 @@ button {
   text-transform: uppercase;
   color: #fff;
   letter-spacing: 0.03em;
+}
+
+.category-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.category-badge.category-garfo,
+.category-badge.category-cravada,
+.category-badge.category-espeto {
+  background-color: rgba(202, 52, 49, 0.2);
+  border-color: rgba(202, 52, 49, 0.4);
+  color: #ff8a80;
+}
+
+.category-badge.category-peca_pendurada,
+.category-badge.category-troca_desfavoravel {
+  background-color: rgba(202, 106, 31, 0.2);
+  border-color: rgba(202, 106, 31, 0.4);
+  color: #ffb74d;
+}
+
+.category-badge.category-mate_perdido,
+.category-badge.category-mate_ameacado {
+  background-color: rgba(202, 52, 49, 0.3);
+  border-color: #ca3431;
+  color: #ff5252;
+  font-weight: 700;
+}
+
+.category-badge.category-captura_perdida {
+  background-color: rgba(230, 168, 23, 0.2);
+  border-color: rgba(230, 168, 23, 0.4);
+  color: #ffd54f;
+}
+
+.category-badge.category-desenvolvimento,
+.category-badge.category-seguranca_rei {
+  background-color: rgba(56, 148, 56, 0.2);
+  border-color: rgba(56, 148, 56, 0.4);
+  color: #81c784;
 }
 
 .player-move-tag {
@@ -668,6 +724,76 @@ button {
   color: var(--color-primary-hover);
   font-family: monospace;
   font-size: 1rem;
+}
+
+.feedback-legend {
+  display: flex;
+  gap: 1rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot.green {
+  background-color: #15781b;
+  box-shadow: 0 0 4px #43ab43;
+}
+
+.legend-dot.red {
+  background-color: #ca3431;
+  box-shadow: 0 0 4px #ff5252;
+}
+
+.feedback-refutation {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-left: 3px solid var(--badge-erro);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.refutation-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.refutation-line {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.refutation-step {
+  font-size: 0.85rem;
+  font-family: monospace;
+  background-color: rgba(255, 255, 255, 0.06);
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  color: #fff;
+}
+.refutation-step strong {
+  color: var(--text-muted);
 }
 
 .btn-toggle-arrow {

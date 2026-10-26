@@ -55,12 +55,36 @@ export class FeedbackCard {
          </div>`
       : '';
 
+    const hasRedThreat = analysis.shapes && analysis.shapes.some(s => s.brush === 'red');
+    const legendHtml = `
+      <div class="feedback-legend" id="feedback-legend" style="display: none;">
+        <span class="legend-item"><span class="legend-dot green"></span> Melhor lance (${analysis.bestMoveSan})</span>
+        ${hasRedThreat ? `<span class="legend-item"><span class="legend-dot red"></span> Ameaça / Punição</span>` : ''}
+      </div>
+    `;
+
+    const refutationHtml = (analysis.refutationPv && analysis.refutationPv.length > 0 && analysis.quality !== 'excelente' && analysis.quality !== 'bom')
+      ? `<div class="feedback-refutation">
+           <span class="refutation-title">Linha de refutação do adversário:</span>
+           <div class="refutation-line">
+             ${analysis.refutationPv.map((m, idx) => `<span class="refutation-step"><strong>${idx + 1}.</strong> ${m.san}</span>`).join(' ')}
+           </div>
+         </div>`
+      : '';
+
+    const categoryTag = analysis.categoryLabel
+      ? `<span class="category-badge category-${analysis.category}">${analysis.categoryLabel}</span>`
+      : '';
+
     this.container.innerHTML = `
       <div class="feedback-card active" style="--badge-color: ${analysis.color}">
         <div class="feedback-header">
-          <span class="quality-badge" style="background-color: ${analysis.color}">
-            ${analysis.label}
-          </span>
+          <div class="badges-row">
+            <span class="quality-badge" style="background-color: ${analysis.color}">
+              ${analysis.label}
+            </span>
+            ${categoryTag}
+          </div>
           <span class="player-move-tag">Seu lance: <strong>${analysis.playerMove}</strong></span>
         </div>
 
@@ -69,6 +93,8 @@ export class FeedbackCard {
         </p>
 
         ${bestMoveInfo}
+        ${legendHtml}
+        ${refutationHtml}
 
         ${retryHtml ? `<div class="feedback-actions">${retryHtml}</div>` : ''}
       </div>
@@ -85,10 +111,15 @@ export class FeedbackCard {
     }
 
     const btnArrow = this.container.querySelector<HTMLButtonElement>('#btn-toggle-best-move');
+    const legendEl = this.container.querySelector<HTMLElement>('#feedback-legend');
+
     if (btnArrow) {
       btnArrow.addEventListener('click', () => {
         this.isArrowShown = !this.isArrowShown;
-        btnArrow.textContent = this.isArrowShown ? 'Ocultar seta' : '🎯 Ver no tabuleiro';
+        btnArrow.textContent = this.isArrowShown ? 'Ocultar setas' : '🎯 Ver no tabuleiro';
+        if (legendEl) {
+          legendEl.style.display = this.isArrowShown ? 'flex' : 'none';
+        }
         if (this.onToggleArrowCallback) {
           this.onToggleArrowCallback(this.isArrowShown);
         }
