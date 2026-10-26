@@ -7,28 +7,10 @@ import { StockfishEngine, eloToEngineConfig } from '../../engine/StockfishEngine
 import { analyzeMoveQuality, type MoveAnalysis, type PositionContext } from '../../analysis/MoveAnalyzer.js';
 import { getProfile, getSettings } from '../../profile/index.js';
 import { addTrainingPosition, removeTrainingPosition } from '../../training/index.js';
+import type { ReviewData } from './ReviewScreen.js';
 
 export interface GameScreenEvents {
-  onGameOver: (gameStats: {
-    accuracy: number;
-    acpl: number;
-    moveCount: number;
-    excellentMoves: number;
-    goodMoves: number;
-    inaccuracies: number;
-    mistakes: number;
-    blunders: number;
-    result: string;
-    mistakesHistory: {
-      fen: string;
-      playerMove: string;
-      bestMove: string;
-      bestMoveSan: string;
-      explanation: string;
-      quality: string;
-      cpLoss: number;
-    }[];
-  }) => void;
+  onGameOver: (gameStats: ReviewData) => void;
   onExit: () => void;
 }
 
@@ -536,6 +518,9 @@ export class GameScreen {
       blunders,
       result,
       mistakesHistory,
+      analyzedMoves: this.analyzedMoves,
+      pgn: this.game.getPgn(),
+      playerColor: this.playerColor,
     });
   }
 
