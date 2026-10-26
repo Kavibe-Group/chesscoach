@@ -21,7 +21,9 @@ export class App {
 
   private applyGlobalSettings(): void {
     const settings = getSettings();
-    document.documentElement.dataset.boardTheme = settings.boardTheme;
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.boardTheme = settings.boardTheme;
+    }
   }
 
   navigate(screen: ScreenName): void {

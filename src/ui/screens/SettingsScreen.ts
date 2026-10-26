@@ -79,7 +79,7 @@ export class SettingsScreen {
           <!-- Tema do Tabuleiro -->
           <div class="setting-group">
             <label class="setting-title">Tema do Tabuleiro</label>
-            <div class="segmented-control">
+            <div class="segmented-control themes-grid">
               <button type="button" class="segment-btn ${settings.boardTheme === 'brown' ? 'active' : ''}" data-theme="brown">
                 🟫 Marrom Clássico
               </button>
@@ -88,6 +88,15 @@ export class SettingsScreen {
               </button>
               <button type="button" class="segment-btn ${settings.boardTheme === 'blue' ? 'active' : ''}" data-theme="blue">
                 🟦 Azul Oceano
+              </button>
+              <button type="button" class="segment-btn ${settings.boardTheme === 'wood' ? 'active' : ''}" data-theme="wood">
+                🪵 Madeira Nobre
+              </button>
+              <button type="button" class="segment-btn ${settings.boardTheme === 'dark' ? 'active' : ''}" data-theme="dark">
+                ⬛ Minimalista Escuro
+              </button>
+              <button type="button" class="segment-btn ${settings.boardTheme === 'contrast' ? 'active' : ''}" data-theme="contrast">
+                🏁 Alto Contraste
               </button>
             </div>
           </div>
@@ -159,9 +168,11 @@ export class SettingsScreen {
       btn.addEventListener('click', () => {
         this.container.querySelectorAll('[data-theme]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const theme = (btn as HTMLElement).dataset.theme as 'brown' | 'green' | 'blue';
+        const theme = (btn as HTMLElement).dataset.theme as any;
         saveSettings({ boardTheme: theme });
-        document.documentElement.dataset.boardTheme = theme;
+        if (typeof document !== 'undefined') {
+          document.documentElement.dataset.boardTheme = theme;
+        }
       });
     });
 

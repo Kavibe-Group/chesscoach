@@ -3,9 +3,12 @@
   "short_name": "Xadrez Coach",
   "description": "Treinador pessoal de xadrez com análise pós-lance e treino de erros",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#161512",
   "theme_color": "#262421",
+  "categories": ["games", "education"],
   "icons": [
     {
       "src": "/favicon.svg",

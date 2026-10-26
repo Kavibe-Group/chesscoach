@@ -120,15 +120,8 @@ export class HomeScreen {
               </div>
             </div>
 
-            <!-- Mini evolução de Elo -->
-            ${historyPoints.length > 1 ? `
-              <div class="elo-history-row">
-                <span class="stat-label">Evolução recente:</span>
-                <div class="elo-sparkline">
-                  ${historyPoints.map(h => `<span class="spark-point">${h.elo}</span>`).join(' → ')}
-                </div>
-              </div>
-            ` : ''}
+            <!-- Mini evolução de Elo em gráfico SVG -->
+            ${historyPoints.length > 1 ? renderEloChart(profile.eloHistory) : ''}
           </div>
 
           <!-- Ações Principais -->
@@ -181,4 +174,65 @@ export class HomeScreen {
   destroy(): void {
     this.container.innerHTML = '';
   }
+}
+
+function renderEloChart(history: { date: string; elo: number }[]): string {
+  if (history.length < 2) return '';
+  const points = history.slice(-8);
+  const elos = points.map(p => p.elo);
+  const minElo = Math.min(...elos);
+  const maxElo = Math.max(...elos);
+  const range = maxElo - minElo || 40;
+
+  const width = 300;
+  const height = 75;
+  const padX = 24;
+  const padTop = 18;
+  const padBottom = 16;
+  const usableW = width - padX * 2;
+  const usableH = height - padTop - padBottom;
+
+  const coords = points.map((p, i) => {
+    const x = padX + (i / (points.length - 1)) * usableW;
+    const y = padTop + usableH - ((p.elo - minElo) / range) * usableH;
+    return { x: Math.round(x), y: Math.round(y), elo: p.elo };
+  });
+
+  const pathD = coords.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`, '');
+  const areaD = `${pathD} L ${coords[coords.length - 1].x} ${height - 4} L ${coords[0].x} ${height - 4} Z`;
+
+  const delta = points[points.length - 1].elo - points[0].elo;
+  const deltaSign = delta > 0 ? `+${delta}` : `${delta}`;
+
+  const dots = coords.map((pt, i) => {
+    const isLast = i === coords.length - 1;
+    return `
+      <g class="chart-point">
+        <circle cx="${pt.x}" cy="${pt.y}" r="${isLast ? 4 : 2.5}" fill="${isLast ? '#4caf50' : '#8bc34a'}" stroke="#1e1e1e" stroke-width="1.5" />
+        <text x="${pt.x}" y="${pt.y - 6}" font-size="9" text-anchor="middle" fill="#ccc" font-weight="${isLast ? 'bold' : 'normal'}">${pt.elo}</text>
+      </g>
+    `;
+  }).join('');
+
+  return `
+    <div class="elo-chart-container">
+      <div class="chart-header">
+        <span class="stat-label">📈 Evolução de Elo</span>
+        <span class="elo-delta-badge ${delta >= 0 ? 'positive' : 'negative'}">
+          ${deltaSign} Elo
+        </span>
+      </div>
+      <svg class="elo-svg-chart" viewBox="0 0 ${width} ${height}">
+        <defs>
+          <linearGradient id="eloGradHome" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4caf50" stop-opacity="0.3" />
+            <stop offset="100%" stop-color="#4caf50" stop-opacity="0.0" />
+          </linearGradient>
+        </defs>
+        <path d="${areaD}" fill="url(#eloGradHome)" />
+        <path d="${pathD}" fill="none" stroke="#4caf50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        ${dots}
+      </svg>
+    </div>
+  `;
 }

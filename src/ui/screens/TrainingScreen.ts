@@ -171,6 +171,7 @@ export class TrainingScreen {
     const btnNext = this.container.querySelector<HTMLButtonElement>('#btn-next-training')!;
 
     if (isCorrect) {
+      hapticVibrate([20, 30, 40]);
       const isMastered = updated?.mastered ?? false;
       feedbackEl.className = 'assessment-feedback success';
       feedbackEl.innerHTML = `
@@ -186,6 +187,7 @@ export class TrainingScreen {
       const to = pos.bestMove.substring(2, 4);
       this.board?.showBestMove(from, to);
     } else {
+      hapticVibrate([40, 30, 40]);
       feedbackEl.className = 'assessment-feedback mistake';
       feedbackEl.innerHTML = `
         <div class="feedback-badge mistake">✕ Não foi esse o melhor lance</div>
@@ -205,5 +207,15 @@ export class TrainingScreen {
   destroy(): void {
     this.board?.destroy();
     this.container.innerHTML = '';
+  }
+}
+
+function hapticVibrate(pattern: number | number[]): void {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern);
+    }
+  } catch {
+    // Silencioso em caso de erro ou browser sem suporte
   }
 }

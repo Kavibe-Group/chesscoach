@@ -5,7 +5,7 @@ export interface AppSettings {
   clockMinutes: number; // 0 = sem relógio (estudo), 10 = 10 min
   engineStrengthMode: 'auto' | 'manual';
   manualElo: number;
-  boardTheme: 'brown' | 'green' | 'blue';
+  boardTheme: 'brown' | 'green' | 'blue' | 'wood' | 'dark' | 'contrast';
   showLegalMoves: boolean;
   showHighlights: boolean;
 }
@@ -35,7 +35,7 @@ export function getSettings(): AppSettings {
       clockMinutes: typeof parsed.clockMinutes === 'number' ? parsed.clockMinutes : DEFAULT_SETTINGS.clockMinutes,
       engineStrengthMode: parsed.engineStrengthMode === 'manual' ? 'manual' : DEFAULT_SETTINGS.engineStrengthMode,
       manualElo: typeof parsed.manualElo === 'number' ? parsed.manualElo : DEFAULT_SETTINGS.manualElo,
-      boardTheme: ['brown', 'green', 'blue'].includes(parsed.boardTheme) ? parsed.boardTheme : DEFAULT_SETTINGS.boardTheme,
+      boardTheme: ['brown', 'green', 'blue', 'wood', 'dark', 'contrast'].includes(parsed.boardTheme) ? parsed.boardTheme : DEFAULT_SETTINGS.boardTheme,
       showLegalMoves: parsed.showLegalMoves !== false,
       showHighlights: parsed.showHighlights !== false,
     };

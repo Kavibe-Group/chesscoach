@@ -221,6 +221,7 @@ export class GameScreen {
   private async handlePlayerMove(event: MoveEvent): Promise<void> {
     if (this.gameCompleted) return;
 
+    hapticVibrate(15);
     this.board?.clearShapes();
     this.moveList?.addMove({
       san: event.san,
@@ -243,6 +244,9 @@ export class GameScreen {
     // 1. Analisa lance do jogador
     const analysis = await this.analyzePlayerMove(event);
     if (analysis) {
+      if (analysis.quality === 'erro' || analysis.quality === 'erro_grave') {
+        hapticVibrate([30, 40, 30]);
+      }
       this.moveList?.setLastMoveAnalysis(analysis);
       this.feedbackCard?.renderAnalysis(analysis);
     }
@@ -350,6 +354,7 @@ export class GameScreen {
 
       const move = this.game.makeMove(from, to, promotion);
       if (move) {
+        hapticVibrate(12);
         this.board?.sync();
         this.moveList?.addMove({
           san: move.san,
@@ -480,6 +485,7 @@ export class GameScreen {
     if (this.gameCompleted) return;
     this.gameCompleted = true;
 
+    hapticVibrate([40, 40, 80]);
     this.clockView?.stop();
     this.board?.setInteractive(false);
 
@@ -530,5 +536,15 @@ export class GameScreen {
     this.opponentEngine.destroy();
     this.analystEngine.destroy();
     this.container.innerHTML = '';
+  }
+}
+
+function hapticVibrate(pattern: number | number[]): void {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern);
+    }
+  } catch {
+    // Silencioso em caso de erro ou browser sem suporte
   }
 }
