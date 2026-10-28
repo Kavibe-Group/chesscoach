@@ -249,6 +249,50 @@ button {
   color: var(--text-muted);
 }
 
+.pwa-install-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.install-tip-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.install-tip-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.install-tip-text strong {
+  color: var(--text-main);
+}
+
+.btn-dismiss-install {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media all and (display-mode: standalone) {
+  .pwa-install-banner {
+    display: none !important;
+  }
+}
+
 .app-footer {
   text-align: center;
   padding: 1.5rem;

@@ -147,11 +147,34 @@ export class HomeScreen {
           </div>
         </div>
 
+        <!-- Dica de instalação PWA no celular / iPhone -->
+        <div class="pwa-install-banner" id="pwa-install-tip">
+          <div class="install-tip-icon">📲</div>
+          <div class="install-tip-text">
+            <strong>Instale no seu iPhone:</strong>
+            <span>Toque em <strong>Compartilhar</strong> (ícone com seta) no Safari e escolha <strong>Adicionar à Tela de Início</strong> para jogar sem barras e 100% offline.</span>
+          </div>
+          <button type="button" class="btn-dismiss-install" id="btn-dismiss-pwa" title="Fechar">✕</button>
+        </div>
+
         <footer class="app-footer">
           <span>Xadrez Coach · Motor Stockfish 19 WASM · Análise em tempo real</span>
         </footer>
       </div>
     `;
+
+    // Se já estiver rodando como PWA instalado (standalone), oculta o banner
+    const isStandalone = typeof window !== 'undefined' && (
+      Boolean((window.navigator as any)?.standalone) ||
+      Boolean(window.matchMedia?.('(display-mode: standalone)').matches)
+    );
+    const bannerEl = this.container.querySelector<HTMLElement>('#pwa-install-tip');
+    if (bannerEl && isStandalone) {
+      bannerEl.style.display = 'none';
+    }
+    this.container.querySelector('#btn-dismiss-pwa')?.addEventListener('click', () => {
+      if (bannerEl) bannerEl.style.display = 'none';
+    });
 
     // Listeners
     this.container.querySelector('#btn-play-game')?.addEventListener('click', () => {

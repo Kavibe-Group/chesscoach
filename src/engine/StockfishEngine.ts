@@ -138,7 +138,13 @@ export class StockfishEngine {
     if (this.workerFactory) {
       this.worker = this.workerFactory();
     } else if (typeof Worker !== 'undefined') {
-      this.worker = new BrowserWorkerWrapper('/stockfish-19-lite-single.js');
+      const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) ? import.meta.env.BASE_URL : '/';
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+      const workerPath = cleanBase + 'stockfish-19-lite-single.js';
+      const workerUrl = (typeof window !== 'undefined' && window.location?.origin)
+        ? new URL(workerPath, window.location.origin).href
+        : workerPath;
+      this.worker = new BrowserWorkerWrapper(workerUrl);
     } else {
       // Em ambiente Node / Vitest, utiliza o adapter do Stockfish
       const { createNodeStockfishWorker } = await import('./nodeWorkerAdapter.js');

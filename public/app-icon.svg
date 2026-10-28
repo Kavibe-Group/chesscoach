@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1c18"/>
+      <stop offset="100%" stop-color="#12110f"/>
+    </linearGradient>
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2e7d32"/>
+      <stop offset="100%" stop-color="#1b5e20"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000" flood-opacity="0.6"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#4caf50" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Solid background for iOS / Android icon -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- Emerald tournament shield / circle -->
+  <circle cx="256" cy="256" r="200" fill="url(#badgeGrad)" stroke="#43a047" stroke-width="6" filter="url(#glow)"/>
+  <circle cx="256" cy="256" r="186" fill="none" stroke="#81c784" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="8 6"/>
+
+  <!-- Chess Knight vector centered (CBurnett design) -->
+  <g transform="translate(101, 95) scale(6.9)" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Drop shadow -->
+    <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="#000" opacity="0.3" transform="translate(1, 1.5)"/>
+    <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="#000" opacity="0.3" transform="translate(1, 1.5)"/>
+
+    <!-- Main Knight body -->
+    <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="#ffffff" stroke="#161512" stroke-width="1.8"/>
+    <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="#ffffff" stroke="#161512" stroke-width="1.8"/>
+    
+    <!-- Eyes and Mane details -->
+    <circle cx="9.2" cy="25.5" r="0.9" fill="#161512"/>
+    <path d="M14.5 15.5 c0.5 -1.2 1.5 -1.5 2 -1" stroke="#161512" stroke-width="1.2" fill="none"/>
+    <path d="M24.5 13 c3 1.5 5 4.5 6 9" stroke="#161512" stroke-width="1.3" fill="none"/>
+    <path d="M27 20 c2 2 3.5 5 3.8 9" stroke="#161512" stroke-width="1.3" fill="none"/>
+  </g>
+</svg>
