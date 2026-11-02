@@ -1755,3 +1755,193 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Aberturas, Barra de Avaliação e Ajustes de Usabilidade
+   ========================================================================== */
+.opening-badge, .review-opening-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-color);
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.live-eval-bar {
+  width: 22px;
+  background-color: #2b2b29;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.live-eval-fill {
+  width: 100%;
+  height: 50%;
+  background-color: #ffffff;
+  transition: height 0.35s ease;
+}
+
+.live-eval-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #888;
+  pointer-events: none;
+  font-family: monospace;
+}
+
+.clock-box.low-time {
+  border-color: #ca3431;
+  background-color: rgba(202, 52, 49, 0.15);
+  animation: pulse-low-time 1s infinite alternate;
+}
+
+@keyframes pulse-low-time {
+  0% { box-shadow: 0 0 0 rgba(202, 52, 49, 0); }
+  100% { box-shadow: 0 0 10px rgba(202, 52, 49, 0.5); }
+}
+
+.clock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
+  background-color: transparent;
+  border: none;
+  overflow: visible;
+}
+
+.clock-grid .segment-btn {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clock-grid .segment-btn.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.toggle-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.toggle-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.toggle-subtext {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.switch-input {
+  width: 44px;
+  height: 24px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.weakness-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.weakness-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.weakness-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.weakness-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.weakness-badge {
+  background-color: var(--badge-erro);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.weakness-empty {
+  padding: 1rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.weakness-empty small {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--text-subtle);
+}
+
+.promo-cancel-btn {
+  margin-top: 1rem;
+  width: 100%;
+}
+

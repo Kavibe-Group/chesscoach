@@ -22,6 +22,8 @@ vi.mock('../ClockView', () => {
     ClockView: class {
       start = vi.fn();
       pause = vi.fn();
+      stop = vi.fn();
+      reset = vi.fn();
       switchTurn = vi.fn();
       destroy = vi.fn();
       onTimeOut = vi.fn();
@@ -35,6 +37,7 @@ function createMockContainer(): HTMLElement {
     querySelector: vi.fn().mockReturnValue({
       addEventListener: vi.fn(),
       textContent: '',
+      style: {},
     }),
     querySelectorAll: vi.fn().mockReturnValue([]),
     appendChild: vi.fn(),

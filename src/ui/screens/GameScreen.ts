@@ -7,6 +7,8 @@ import { StockfishEngine, eloToEngineConfig } from '../../engine/StockfishEngine
 import { analyzeMoveQuality, type MoveAnalysis, type PositionContext } from '../../analysis/MoveAnalyzer.js';
 import { getProfile, getSettings } from '../../profile/index.js';
 import { addTrainingPosition, removeTrainingPosition } from '../../training/index.js';
+import { sound } from '../../sound/SoundManager.js';
+import { detectOpening } from '../../data/openings.js';
 import type { ReviewData } from './ReviewScreen.js';
 
 export interface GameScreenEvents {
@@ -70,6 +72,9 @@ export class GameScreen {
     // Avalia posição inicial para o primeiro lance do jogador
     await this.cachePositionEval();
 
+    // Inicia o relógio
+    this.clockView?.start('w');
+
     // Se o jogador escolheu Pretas, o motor joga primeiro (Brancas)
     if (this.playerColor === 'black') {
       await this.triggerEngineMove();
@@ -90,6 +95,7 @@ export class GameScreen {
           <div class="header-left">
             <button type="button" class="btn btn-ghost" id="btn-back-home">← Início</button>
             <span class="game-mode-badge">Partida com Treinador</span>
+            <span id="opening-badge" class="opening-badge" style="display: none;"></span>
           </div>
 
           <div class="engine-info-tag">
@@ -101,7 +107,15 @@ export class GameScreen {
         <div class="game-layout">
           <!-- Coluna do Tabuleiro -->
           <div class="board-pane">
-            <div id="game-board-container" class="board-frame"></div>
+            <div class="board-wrapper">
+              ${settings.showEvalBar ? `
+                <div class="live-eval-bar" id="live-eval-bar" title="Avaliação da Posição">
+                  <div class="live-eval-fill" id="live-eval-fill"></div>
+                  <span class="live-eval-text" id="live-eval-text">0.0</span>
+                </div>
+              ` : ''}
+              <div id="game-board-container" class="board-frame"></div>
+            </div>
           </div>
 
           <!-- Coluna Lateral: Feedback, Lances e Controles -->
@@ -190,6 +204,38 @@ export class GameScreen {
     });
   }
 
+  private updateEvalBar(score: number, mate: number | null): void {
+    const fillEl = this.container.querySelector<HTMLElement>('#live-eval-fill');
+    const textEl = this.container.querySelector<HTMLElement>('#live-eval-text');
+    if (!fillEl || !textEl) return;
+
+    if (mate !== null) {
+      textEl.textContent = mate > 0 ? `+M${mate}` : `-M${Math.abs(mate)}`;
+      if (fillEl.style) fillEl.style.height = mate > 0 ? '100%' : '0%';
+    } else {
+      const pawnScore = (score / 100).toFixed(1);
+      textEl.textContent = score > 0 ? `+${pawnScore}` : pawnScore;
+      const percent = Math.max(5, Math.min(95, 50 + 50 * (2 / (1 + Math.exp(-0.0035 * score)) - 1)));
+      if (fillEl.style) fillEl.style.height = `${percent}%`;
+    }
+  }
+
+  private updateOpeningBadge(): void {
+    const moves = this.game.getHistory().map(m => m.san);
+    const opening = detectOpening(moves);
+    const badge = this.container.querySelector<HTMLElement>('#opening-badge');
+    if (badge) {
+      if (opening) {
+        badge.textContent = `📖 ${opening.eco}: ${opening.name}`;
+        badge.title = opening.description;
+        if (badge.style) badge.style.display = 'inline-flex';
+      } else {
+        badge.textContent = '';
+        if (badge.style) badge.style.display = 'none';
+      }
+    }
+  }
+
   /**
    * Guarda em cache a avaliação analítica da posição atual antes do lance
    */
@@ -210,6 +256,8 @@ export class GameScreen {
         bestMove: evalResult.bestMove,
         pv: evalResult.pv,
       };
+
+      this.updateEvalBar(this.lastEvalBeforeMove.score, this.lastEvalBeforeMove.mate);
     } catch (err) {
       console.warn('Erro ao avaliar posição pré-lance:', err);
     }
@@ -228,6 +276,8 @@ export class GameScreen {
       from: event.from,
       to: event.to,
     });
+    this.updateOpeningBadge();
+    this.clockView?.switchTurn(this.game.turn());
 
     // Se o jogo acabou com o lance do jogador (ex: mate ou empate)
     if (this.game.isGameOver()) {
@@ -246,9 +296,13 @@ export class GameScreen {
     if (analysis) {
       if (analysis.quality === 'erro' || analysis.quality === 'erro_grave') {
         hapticVibrate([30, 40, 30]);
+        sound.playMistake();
+      } else if (analysis.quality === 'excelente') {
+        sound.playSuccess();
       }
       this.moveList?.setLastMoveAnalysis(analysis);
       this.feedbackCard?.renderAnalysis(analysis);
+      this.updateEvalBar(analysis.evalAfter, analysis.mateAfter);
     }
 
     // 2. O motor oponente joga
@@ -320,6 +374,7 @@ export class GameScreen {
           errorType: analysis.quality,
           cpLoss: analysis.cpLoss,
           gameIndex: (getProfile()?.gamesPlayed ?? 0) + 1,
+          category: analysis.category,
         });
       }
 
@@ -355,12 +410,23 @@ export class GameScreen {
       const move = this.game.makeMove(from, to, promotion);
       if (move) {
         hapticVibrate(12);
+        if (this.game.isCheck()) {
+          sound.playCheck();
+        } else if (move.captured) {
+          sound.playCapture();
+        } else if (move.san === 'O-O' || move.san === 'O-O-O') {
+          sound.playCastle();
+        } else {
+          sound.playMove();
+        }
         this.board?.sync();
         this.moveList?.addMove({
           san: move.san,
           from,
           to,
         });
+        this.updateOpeningBadge();
+        this.clockView?.switchTurn(this.game.turn());
       }
 
       // Prepara cache de avaliação para o próximo lance do jogador
@@ -426,6 +492,11 @@ export class GameScreen {
     this.board?.setInteractive(true);
     this.feedbackCard?.renderEmpty('Tente encontrar um lance melhor desta vez!');
     this.updateTurnIndicator('Sua vez (segunda chance)');
+    this.updateOpeningBadge();
+    this.clockView?.switchTurn(this.game.turn());
+    if (this.lastEvalBeforeMove) {
+      this.updateEvalBar(this.lastEvalBeforeMove.score, this.lastEvalBeforeMove.mate);
+    }
   }
 
   /**
@@ -461,6 +532,12 @@ export class GameScreen {
       this.moveList?.clear();
       this.feedbackCard?.renderEmpty();
       this.updateTurnIndicator(this.playerColor === 'white' ? 'Sua vez' : 'Motor pensando...');
+      const settings = getSettings();
+      if (typeof this.clockView?.reset === 'function') {
+        this.clockView.reset(settings.clockMinutes);
+      }
+      this.clockView?.start('w');
+      this.updateOpeningBadge();
       await this.cachePositionEval();
 
       if (this.playerColor === 'black') {
@@ -486,7 +563,10 @@ export class GameScreen {
     this.gameCompleted = true;
 
     hapticVibrate([40, 40, 80]);
-    this.clockView?.stop();
+    sound.playGameEnd();
+    if (typeof this.clockView?.stop === 'function') {
+      this.clockView.stop();
+    }
     this.board?.setInteractive(false);
 
     // Compila estatísticas

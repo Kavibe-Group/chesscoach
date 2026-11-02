@@ -2,6 +2,7 @@ import { GameController } from '../../game/GameController.js';
 import { ChessBoard, type MoveEvent } from '../ChessBoard.js';
 import { StockfishEngine } from '../../engine/StockfishEngine.js';
 import { analyzeMoveQuality, type PositionContext } from '../../analysis/MoveAnalyzer.js';
+import { sound } from '../../sound/SoundManager.js';
 import {
   getPuzzlesForAssessment,
   checkPuzzleSolution,
@@ -25,6 +26,7 @@ export class AssessmentScreen {
   private board: ChessBoard | null = null;
   private startTime = 0;
   private puzzleAnswered = false;
+  private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
   // Fase de calibração contra o motor
   public isCalibrationPhase = false;
@@ -114,6 +116,22 @@ export class AssessmentScreen {
       this.currentIdx++;
       this.render();
     });
+
+    if (typeof window !== 'undefined') {
+      if (this.keydownHandler) {
+        window.removeEventListener('keydown', this.keydownHandler);
+      }
+      this.keydownHandler = (e: KeyboardEvent) => {
+        if (this.puzzleAnswered && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight')) {
+          e.preventDefault();
+          const btnNext = this.container.querySelector<HTMLButtonElement>('#btn-next-puzzle');
+          if (btnNext && btnNext.style.display !== 'none') {
+            btnNext.click();
+          }
+        }
+      };
+      window.addEventListener('keydown', this.keydownHandler);
+    }
   }
 
   private handlePlayerMove(moveUci: string): void {
@@ -138,12 +156,14 @@ export class AssessmentScreen {
     const btnNext = this.container.querySelector<HTMLButtonElement>('#btn-next-puzzle')!;
 
     if (isCorrect) {
+      sound.playSuccess();
       feedbackEl.className = 'assessment-feedback success';
       feedbackEl.innerHTML = `
         <div class="feedback-badge success">✓ Excelente! Você acertou!</div>
         <p>Solução: <strong>${puzzle.solutionSan}</strong></p>
       `;
     } else {
+      sound.playMistake();
       feedbackEl.className = 'assessment-feedback mistake';
       feedbackEl.innerHTML = `
         <div class="feedback-badge mistake">✕ Não foi esse lance</div>
@@ -406,6 +426,10 @@ export class AssessmentScreen {
   }
 
   destroy(): void {
+    if (typeof window !== 'undefined' && this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = null;
+    }
     this.board?.destroy();
     this.opponentEngine?.destroy();
     this.analystEngine?.destroy();

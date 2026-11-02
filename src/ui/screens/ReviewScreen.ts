@@ -6,6 +6,7 @@ import type { DrawShape } from 'chessground/draw';
 import { updateEloAfterGame, getProfile, getEloBand, saveGameStats } from '../../profile/index.js';
 import type { GameStats, PlayerProfile } from '../../profile/index.js';
 import type { MoveAnalysis, TacticalShape } from '../../analysis/MoveAnalyzer.js';
+import { detectOpening } from '../../data/openings.js';
 
 export interface ReviewScreenEvents {
   onPlayAgain: () => void;
@@ -99,7 +100,7 @@ export class ReviewScreen {
     };
 
     saveGameStats(gameStats);
-    this.updatedProfile = updateEloAfterGame(profile, gameStats);
+    this.updatedProfile = updateEloAfterGame(profile, gameStats, this.data.analyzedMoves);
     this.eloDelta = this.updatedProfile.estimatedElo - eloBefore;
   }
 
@@ -225,11 +226,14 @@ export class ReviewScreen {
       ? (this.playerColor === 'black' ? '🎉 Vitória!' : 'Derrota')
       : 'Empate (1/2-1/2)';
 
+    const detectedOpening = detectOpening(this.replayMoves.map(m => m.san));
+
     this.container.innerHTML = `
       <div class="review-screen">
         <header class="review-header">
           <div class="review-title-row">
             <span class="review-badge">Revisão Pós-Partida</span>
+            ${detectedOpening ? `<span class="review-opening-badge" title="${detectedOpening.description}">📖 ${detectedOpening.eco}: ${detectedOpening.name}</span>` : ''}
             <div class="review-tabs">
               <button type="button" class="tab-btn ${this.activeTab === 'summary' ? 'active' : ''}" id="tab-summary">
                 📊 Resumo & Estatísticas
@@ -488,6 +492,12 @@ export class ReviewScreen {
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
           this.goToPly(this.currentReplayIndex + 1);
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          this.goToPly(0);
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          this.goToPly(this.replayMoves.length - 1);
         }
       };
       window.addEventListener('keydown', this.keydownHandler);

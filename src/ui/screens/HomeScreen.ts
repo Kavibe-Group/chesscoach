@@ -1,5 +1,6 @@
 import { getProfile, getEloBand } from '../../profile/index.js';
 import { getActiveTrainingPositions, getMasteredCount } from '../../training/index.js';
+import { CATEGORY_LABELS, type TacticalCategory } from '../../analysis/MoveAnalyzer.js';
 
 export interface HomeScreenEvents {
   onStartGame: () => void;
@@ -76,6 +77,9 @@ export class HomeScreen {
     const eloBand = getEloBand(profile.estimatedElo);
     const avgAccuracy = profile.gamesPlayed > 0 ? Math.round(profile.totalAccuracy) : 0;
     const historyPoints = profile.eloHistory.slice(-5);
+    const categoryEntries = Object.entries(profile.errorCategories || {})
+      .filter(([cat]) => !['imprecisao', 'erro', 'erro_grave'].includes(cat))
+      .sort((a, b) => b[1] - a[1]);
 
     this.container.innerHTML = `
       <div class="home-screen dashboard">
@@ -145,6 +149,30 @@ export class HomeScreen {
               </button>
             </div>
           </div>
+
+          <!-- Card de Diagnóstico de Fraquezas Táticas -->
+          <div class="card weakness-card">
+            <span class="section-badge">🎯 Diagnóstico de Fraquezas</span>
+            <h3>Padrões com Mais Erros</h3>
+            ${categoryEntries.length > 0 ? `
+              <div class="weakness-list">
+                ${categoryEntries.slice(0, 4).map(([cat, count]) => `
+                  <div class="weakness-item">
+                    <span class="weakness-name">${CATEGORY_LABELS[cat as TacticalCategory] || cat}</span>
+                    <span class="weakness-badge">${count}x</span>
+                  </div>
+                `).join('')}
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-train-weakness" style="margin-top: 0.8rem; width: 100%;">
+                🧩 Treinar Padrões Fracos (${activeErrors.length > 0 ? `${activeErrors.length} pendentes` : 'Puzzles do Tema'})
+              </button>
+            ` : `
+              <div class="weakness-empty">
+                <p>Nenhuma fraqueza tática dominante identificada ainda.</p>
+                <small>Jogue mais partidas contra o motor para o treinador mapear seus padrões de erro.</small>
+              </div>
+            `}
+          </div>
         </div>
 
         <!-- Dica de instalação PWA no celular / iPhone -->
@@ -181,6 +209,9 @@ export class HomeScreen {
       this.events.onStartGame();
     });
     this.container.querySelector('#btn-training')?.addEventListener('click', () => {
+      this.events.onStartTraining();
+    });
+    this.container.querySelector('#btn-train-weakness')?.addEventListener('click', () => {
       this.events.onStartTraining();
     });
     this.container.querySelector('#btn-re-assessment')?.addEventListener('click', () => {

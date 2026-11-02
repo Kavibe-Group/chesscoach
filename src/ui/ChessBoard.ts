@@ -7,6 +7,8 @@ import type { Square } from 'chess.js';
 import { GameController } from '../game/GameController.js';
 import { PromotionModal } from './PromotionModal.js';
 import type { TacticalShape, MoveAnalysis } from '../analysis/MoveAnalyzer.js';
+import { getSettings } from '../profile/index.js';
+import { sound } from '../sound/SoundManager.js';
 
 export interface MoveEvent {
   from: string;
@@ -50,6 +52,7 @@ export class ChessBoard {
   }
 
   private buildConfig(): Config {
+    const settings = getSettings();
     const turn = this.game.turn() === 'w' ? 'white' : 'black';
     const isPlayerTurn = turn === this.playerColor && this.isInteractive && !this.game.isGameOver();
 
@@ -57,18 +60,22 @@ export class ChessBoard {
       fen: this.game.getFen(),
       orientation: this.playerColor,
       turnColor: turn,
-      check: this.game.isCheck(),
+      check: settings.showHighlights ? this.game.isCheck() : false,
       autoCastle: true,
       blockTouchScroll: true,
       animation: {
         enabled: true,
         duration: 200,
       },
+      highlight: {
+        lastMove: settings.showHighlights,
+        check: settings.showHighlights,
+      },
       movable: {
         free: false,
         color: isPlayerTurn ? this.playerColor : undefined,
         dests: isPlayerTurn ? this.calculateDests() : new Map(),
-        showDests: true,
+        showDests: settings.showLegalMoves,
         events: {
           after: (orig: Key, dest: Key) => this.handleUserMove(orig, dest),
         },
@@ -110,7 +117,12 @@ export class ChessBoard {
       const isBlackPromotion = piece.color === 'b' && orig[1] === '2' && dest[1] === '1';
 
       if (isWhitePromotion || isBlackPromotion) {
-        promotion = await this.promotionModal.open();
+        promotion = await this.promotionModal.open(this.playerColor);
+        if (!promotion) {
+          // Promoção cancelada pelo usuário: restaura o tabuleiro
+          this.sync();
+          return;
+        }
       }
     }
 
@@ -119,6 +131,17 @@ export class ChessBoard {
       // Lance ilegal (ou cancelado): restaura posição do tabuleiro
       this.sync();
       return;
+    }
+
+    // Toca som apropriado do lance
+    if (this.game.isCheck()) {
+      sound.playCheck();
+    } else if (move.captured) {
+      sound.playCapture();
+    } else if (move.san === 'O-O' || move.san === 'O-O-O') {
+      sound.playCastle();
+    } else {
+      sound.playMove();
     }
 
     // Atualiza estado do tabuleiro
@@ -139,22 +162,28 @@ export class ChessBoard {
    * Sincroniza o tabuleiro visual com o estado do GameController
    */
   sync(): void {
+    const settings = getSettings();
     const turn = this.game.turn() === 'w' ? 'white' : 'black';
     const isPlayerTurn = turn === this.playerColor && this.isInteractive && !this.game.isGameOver();
 
     const history = this.game.getHistory();
-    const lastMove = history.length > 0
+    const lastMove = (settings.showHighlights && history.length > 0)
       ? [history[history.length - 1].from as Key, history[history.length - 1].to as Key]
       : undefined;
 
     this.cg.set({
       fen: this.game.getFen(),
       turnColor: turn,
-      check: this.game.isCheck(),
+      check: settings.showHighlights ? this.game.isCheck() : false,
       lastMove,
+      highlight: {
+        lastMove: settings.showHighlights,
+        check: settings.showHighlights,
+      },
       movable: {
         color: isPlayerTurn ? this.playerColor : undefined,
         dests: isPlayerTurn ? this.calculateDests() : new Map(),
+        showDests: settings.showLegalMoves,
       },
     });
   }

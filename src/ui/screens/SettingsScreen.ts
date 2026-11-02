@@ -44,14 +44,62 @@ export class SettingsScreen {
           <!-- Relógio -->
           <div class="setting-group">
             <label class="setting-title">Modo de Tempo</label>
-            <p class="setting-desc">Sem limite de tempo para estudar com calma ou partida com relógio.</p>
-            <div class="segmented-control">
+            <p class="setting-desc">Escolha partidas de estudo livre ou com controle de tempo.</p>
+            <div class="segmented-control clock-grid">
               <button type="button" class="segment-btn ${settings.clockMinutes === 0 ? 'active' : ''}" data-clock="0">
-                ⌛ Modo Estudo (Sem Relógio)
+                ⌛ Sem Relógio (Estudo)
+              </button>
+              <button type="button" class="segment-btn ${settings.clockMinutes === 3 ? 'active' : ''}" data-clock="3">
+                ⚡ 3 min (Blitz)
+              </button>
+              <button type="button" class="segment-btn ${settings.clockMinutes === 5 ? 'active' : ''}" data-clock="5">
+                🔥 5 min (Blitz)
               </button>
               <button type="button" class="segment-btn ${settings.clockMinutes === 10 ? 'active' : ''}" data-clock="10">
-                ⏱️ 10 Minutos (Rápida)
+                ⏱️ 10 min (Rápida)
               </button>
+              <button type="button" class="segment-btn ${settings.clockMinutes === 15 ? 'active' : ''}" data-clock="15">
+                ⏳ 15 min (Rápida)
+              </button>
+            </div>
+          </div>
+
+          <!-- Auxílios de Tabuleiro & Som -->
+          <div class="setting-group">
+            <label class="setting-title">Auxílios de Tabuleiro & Som</label>
+            <p class="setting-desc">Personalize os recursos visuais e auditivos durante o treino.</p>
+            <div class="toggle-list">
+              <label class="toggle-item">
+                <div class="toggle-info">
+                  <span class="toggle-label">🔊 Efeitos Sonoros</span>
+                  <span class="toggle-subtext">Sons sintetizados de peças, capturas, xeques e alertas</span>
+                </div>
+                <input type="checkbox" id="toggle-sound" class="switch-input" ${settings.soundEnabled ? 'checked' : ''} />
+              </label>
+
+              <label class="toggle-item">
+                <div class="toggle-info">
+                  <span class="toggle-label">📊 Barra de Avaliação ao Vivo</span>
+                  <span class="toggle-subtext">Mostra a barra dinâmica com a vantagem em centipeões</span>
+                </div>
+                <input type="checkbox" id="toggle-eval-bar" class="switch-input" ${settings.showEvalBar ? 'checked' : ''} />
+              </label>
+
+              <label class="toggle-item">
+                <div class="toggle-info">
+                  <span class="toggle-label">🎯 Mostrar Lances Legais</span>
+                  <span class="toggle-subtext">Pontos nas casas possíveis ao clicar em uma peça</span>
+                </div>
+                <input type="checkbox" id="toggle-legal-moves" class="switch-input" ${settings.showLegalMoves ? 'checked' : ''} />
+              </label>
+
+              <label class="toggle-item">
+                <div class="toggle-info">
+                  <span class="toggle-label">💡 Destacar Último Lance e Xeque</span>
+                  <span class="toggle-subtext">Realça a casa de origem/destino e rei ameaçado</span>
+                </div>
+                <input type="checkbox" id="toggle-highlights" class="switch-input" ${settings.showHighlights ? 'checked' : ''} />
+              </label>
             </div>
           </div>
 
@@ -175,6 +223,34 @@ export class SettingsScreen {
         }
       });
     });
+
+    const toggleSound = this.container.querySelector<HTMLInputElement>('#toggle-sound');
+    if (toggleSound) {
+      toggleSound.addEventListener('change', () => {
+        saveSettings({ soundEnabled: toggleSound.checked });
+      });
+    }
+
+    const toggleEvalBar = this.container.querySelector<HTMLInputElement>('#toggle-eval-bar');
+    if (toggleEvalBar) {
+      toggleEvalBar.addEventListener('change', () => {
+        saveSettings({ showEvalBar: toggleEvalBar.checked });
+      });
+    }
+
+    const toggleLegalMoves = this.container.querySelector<HTMLInputElement>('#toggle-legal-moves');
+    if (toggleLegalMoves) {
+      toggleLegalMoves.addEventListener('change', () => {
+        saveSettings({ showLegalMoves: toggleLegalMoves.checked });
+      });
+    }
+
+    const toggleHighlights = this.container.querySelector<HTMLInputElement>('#toggle-highlights');
+    if (toggleHighlights) {
+      toggleHighlights.addEventListener('change', () => {
+        saveSettings({ showHighlights: toggleHighlights.checked });
+      });
+    }
 
     this.container.querySelector('#btn-redo-assessment')?.addEventListener('click', () => {
       this.events.onResetAssessment();

@@ -2,6 +2,7 @@
 // Persisted in localStorage
 
 import { getStorage } from '../storage.js';
+import type { MoveAnalysis } from '../analysis/MoveAnalyzer.js';
 
 export interface PlayerProfile {
   estimatedElo: number;
@@ -102,7 +103,11 @@ export function createProfile(estimatedElo: number): PlayerProfile {
   return profile;
 }
 
-export function updateEloAfterGame(profile: PlayerProfile, gameStats: GameStats): PlayerProfile {
+export function updateEloAfterGame(
+  profile: PlayerProfile,
+  gameStats: GameStats,
+  analyzedMoves?: MoveAnalysis[]
+): PlayerProfile {
   recordDailyActivity(profile);
 
   // Adapt Elo based on result + ACPL
@@ -145,7 +150,20 @@ export function updateEloAfterGame(profile: PlayerProfile, gameStats: GameStats)
     elo: profile.estimatedElo,
   });
 
-  // Update error categories
+  // Atualiza categorias de erro: se houver análise detalhada de lances, registra categorias táticas reais
+  if (analyzedMoves && analyzedMoves.length > 0) {
+    for (const m of analyzedMoves) {
+      if (
+        m.category &&
+        m.category !== 'posicional' &&
+        (m.quality === 'erro' || m.quality === 'erro_grave' || m.quality === 'imprecisao')
+      ) {
+        profile.errorCategories[m.category] = (profile.errorCategories[m.category] || 0) + 1;
+      }
+    }
+  }
+
+  // Mantém também contagem de qualidade geral
   if (gameStats.inaccuracies > 0) {
     profile.errorCategories['imprecisao'] =
       (profile.errorCategories['imprecisao'] || 0) + gameStats.inaccuracies;

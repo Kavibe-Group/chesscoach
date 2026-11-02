@@ -1,5 +1,6 @@
 import { GameController } from '../../game/GameController.js';
 import { ChessBoard } from '../ChessBoard.js';
+import { sound } from '../../sound/SoundManager.js';
 import {
   getActiveTrainingPositions,
   recordTrainingAttempt,
@@ -21,6 +22,7 @@ export class TrainingScreen {
   private game: GameController;
   private board: ChessBoard | null = null;
   private isAnswered = false;
+  private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
   constructor(container: HTMLElement, events: TrainingScreenEvents) {
     this.container = container;
@@ -155,6 +157,22 @@ export class TrainingScreen {
       }
       this.render();
     });
+
+    if (typeof window !== 'undefined') {
+      if (this.keydownHandler) {
+        window.removeEventListener('keydown', this.keydownHandler);
+      }
+      this.keydownHandler = (e: KeyboardEvent) => {
+        if (this.isAnswered && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight')) {
+          e.preventDefault();
+          const btnNext = this.container.querySelector<HTMLButtonElement>('#btn-next-training');
+          if (btnNext && btnNext.style.display !== 'none') {
+            btnNext.click();
+          }
+        }
+      };
+      window.addEventListener('keydown', this.keydownHandler);
+    }
   }
 
   private handlePlayerMove(moveUci: string): void {
@@ -172,6 +190,7 @@ export class TrainingScreen {
 
     if (isCorrect) {
       hapticVibrate([20, 30, 40]);
+      sound.playSuccess();
       const isMastered = updated?.mastered ?? false;
       feedbackEl.className = 'assessment-feedback success';
       feedbackEl.innerHTML = `
@@ -188,6 +207,7 @@ export class TrainingScreen {
       this.board?.showBestMove(from, to);
     } else {
       hapticVibrate([40, 30, 40]);
+      sound.playMistake();
       feedbackEl.className = 'assessment-feedback mistake';
       feedbackEl.innerHTML = `
         <div class="feedback-badge mistake">✕ Não foi esse o melhor lance</div>
@@ -205,6 +225,10 @@ export class TrainingScreen {
   }
 
   destroy(): void {
+    if (typeof window !== 'undefined' && this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = null;
+    }
     this.board?.destroy();
     this.container.innerHTML = '';
   }

@@ -2,6 +2,7 @@ export class ClockView {
   private element: HTMLElement;
   private whiteTimeSeconds: number;
   private blackTimeSeconds: number;
+  private initialMinutes: number;
   private activeColor: 'w' | 'b' | null = null;
   private intervalId: number | null = null;
   private onTimeOutCallback: ((color: 'w' | 'b') => void) | null = null;
@@ -9,9 +10,22 @@ export class ClockView {
 
   constructor(element: HTMLElement, initialMinutes = 0) {
     this.element = element;
+    this.initialMinutes = initialMinutes;
     this.enabled = initialMinutes > 0;
     this.whiteTimeSeconds = initialMinutes * 60;
     this.blackTimeSeconds = initialMinutes * 60;
+    this.render();
+  }
+
+  reset(newMinutes?: number): void {
+    this.stop();
+    if (typeof newMinutes === 'number') {
+      this.initialMinutes = newMinutes;
+      this.enabled = newMinutes > 0;
+    }
+    this.activeColor = null;
+    this.whiteTimeSeconds = this.initialMinutes * 60;
+    this.blackTimeSeconds = this.initialMinutes * 60;
     this.render();
   }
 
@@ -20,22 +34,25 @@ export class ClockView {
     this.activeColor = color;
     this.stop();
 
-    this.intervalId = window.setInterval(() => {
-      if (this.activeColor === 'w') {
-        this.whiteTimeSeconds = Math.max(0, this.whiteTimeSeconds - 1);
-        if (this.whiteTimeSeconds === 0) {
-          this.stop();
-          if (this.onTimeOutCallback) this.onTimeOutCallback('w');
+    if (typeof window !== 'undefined') {
+      this.intervalId = window.setInterval(() => {
+        if (this.activeColor === 'w') {
+          this.whiteTimeSeconds = Math.max(0, this.whiteTimeSeconds - 1);
+          if (this.whiteTimeSeconds === 0) {
+            this.stop();
+            if (this.onTimeOutCallback) this.onTimeOutCallback('w');
+          }
+        } else if (this.activeColor === 'b') {
+          this.blackTimeSeconds = Math.max(0, this.blackTimeSeconds - 1);
+          if (this.blackTimeSeconds === 0) {
+            this.stop();
+            if (this.onTimeOutCallback) this.onTimeOutCallback('b');
+          }
         }
-      } else if (this.activeColor === 'b') {
-        this.blackTimeSeconds = Math.max(0, this.blackTimeSeconds - 1);
-        if (this.blackTimeSeconds === 0) {
-          this.stop();
-          if (this.onTimeOutCallback) this.onTimeOutCallback('b');
-        }
-      }
-      this.render();
-    }, 1000);
+        this.render();
+      }, 1000);
+    }
+    this.render();
   }
 
   stop(): void {
@@ -72,14 +89,16 @@ export class ClockView {
 
     const whiteActive = this.activeColor === 'w' ? 'active' : '';
     const blackActive = this.activeColor === 'b' ? 'active' : '';
+    const whiteLow = this.whiteTimeSeconds > 0 && this.whiteTimeSeconds <= 30 ? 'low-time' : '';
+    const blackLow = this.blackTimeSeconds > 0 && this.blackTimeSeconds <= 30 ? 'low-time' : '';
 
     this.element.innerHTML = `
       <div class="clock-display timed">
-        <div class="clock-box black ${blackActive}">
+        <div class="clock-box black ${blackActive} ${blackLow}">
           <span class="clock-name">Pretas</span>
           <span class="clock-time">${this.formatTime(this.blackTimeSeconds)}</span>
         </div>
-        <div class="clock-box white ${whiteActive}">
+        <div class="clock-box white ${whiteActive} ${whiteLow}">
           <span class="clock-name">Brancas</span>
           <span class="clock-time">${this.formatTime(this.whiteTimeSeconds)}</span>
         </div>

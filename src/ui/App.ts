@@ -12,11 +12,22 @@ export class App {
   private root: HTMLElement;
   private currentScreenInstance: { destroy: () => void } | null = null;
   private lastReviewData: ReviewData | null = null;
+  private currentScreen: ScreenName = 'home';
 
   constructor(root: HTMLElement) {
     this.root = root;
     this.applyGlobalSettings();
-    this.navigate('home');
+
+    let initialScreen: ScreenName = 'home';
+    if (typeof window !== 'undefined' && window.location?.hash) {
+      const hashScreen = window.location.hash.replace('#', '') as ScreenName;
+      if (['home', 'assessment', 'game', 'review', 'training', 'settings'].includes(hashScreen)) {
+        initialScreen = hashScreen;
+      }
+    }
+
+    this.navigate(initialScreen, false);
+    this.setupHistoryRouting();
   }
 
   private applyGlobalSettings(): void {
@@ -26,10 +37,26 @@ export class App {
     }
   }
 
-  navigate(screen: ScreenName): void {
+  private setupHistoryRouting(): void {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', (e: PopStateEvent) => {
+        const targetScreen = (e.state?.screen as ScreenName) || 'home';
+        this.navigate(targetScreen, false);
+      });
+    }
+  }
+
+  navigate(screen: ScreenName, updateHistory = true): void {
     if (this.currentScreenInstance) {
       this.currentScreenInstance.destroy();
       this.currentScreenInstance = null;
+    }
+
+    this.currentScreen = screen;
+
+    if (updateHistory && typeof window !== 'undefined' && typeof window.history?.pushState === 'function') {
+      const url = `${window.location.pathname}#${screen}`;
+      window.history.pushState({ screen }, '', url);
     }
 
     this.root.innerHTML = '';

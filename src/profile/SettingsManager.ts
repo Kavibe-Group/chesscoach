@@ -2,12 +2,14 @@ import { getStorage } from '../storage.js';
 
 export interface AppSettings {
   playerColor: 'white' | 'black';
-  clockMinutes: number; // 0 = sem relógio (estudo), 10 = 10 min
+  clockMinutes: number; // 0 = sem relógio (estudo), 3, 5, 10, 15
   engineStrengthMode: 'auto' | 'manual';
   manualElo: number;
   boardTheme: 'brown' | 'green' | 'blue' | 'wood' | 'dark' | 'contrast';
   showLegalMoves: boolean;
   showHighlights: boolean;
+  soundEnabled: boolean;
+  showEvalBar: boolean;
 }
 
 const SETTINGS_KEY = 'xadrez-coach-settings';
@@ -20,6 +22,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   boardTheme: 'brown',
   showLegalMoves: true,
   showHighlights: true,
+  soundEnabled: true,
+  showEvalBar: true,
 };
 
 export function getSettings(): AppSettings {
@@ -38,6 +42,8 @@ export function getSettings(): AppSettings {
       boardTheme: ['brown', 'green', 'blue', 'wood', 'dark', 'contrast'].includes(parsed.boardTheme) ? parsed.boardTheme : DEFAULT_SETTINGS.boardTheme,
       showLegalMoves: parsed.showLegalMoves !== false,
       showHighlights: parsed.showHighlights !== false,
+      soundEnabled: parsed.soundEnabled !== false,
+      showEvalBar: parsed.showEvalBar !== false,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
