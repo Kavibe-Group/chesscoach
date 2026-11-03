@@ -1949,6 +1949,11 @@ button {
 /* Reformulation: calm, adaptive interface. Board themes remain independent. */
 :root {
   color-scheme: light;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --app-height: calc(100dvh - var(--safe-top));
   --bg-primary:#f5f4f0; --bg-secondary:#fffefa; --bg-card:#f0efe9;
   --bg-hover:#e8ebe5; --border-color:#dcded5;
   --text-main:#202b27; --text-muted:#59655f; --text-subtle:#66726b;
@@ -1974,7 +1979,9 @@ button {
   }
 }
 body { background:var(--bg-primary); line-height:1.5; }
-#app { min-height:100dvh; }
+/* The app shell owns the top/side safe areas on every screen. Game and nav
+   own the bottom inset, so it is never counted twice. */
+#app {min-height:100dvh;padding-top:var(--safe-top);padding-left:var(--safe-left);padding-right:var(--safe-right);}
 h1 {font-size:clamp(1.8rem,4.5vw,3rem);line-height:1.12;font-weight:650;letter-spacing:-.045em;}
 h2 {font-size:1.3rem;line-height:1.3;letter-spacing:-.025em;}
 p {color:var(--text-muted);}
@@ -1997,7 +2004,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible {o
 .shell-header {width:min(1120px,100%);margin:auto;display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--border-color);}
 .brand {color:var(--text-main);text-decoration:none;display:flex;gap:10px;align-items:center;font-size:24px;}
 .brand span {font-size:15px;font-weight:650;letter-spacing:-.03em;}
-.main-nav {position:sticky;bottom:0;z-index:20;margin-top:auto;display:flex;justify-content:center;gap:6px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--bg-secondary);border-top:1px solid var(--border-color);}
+.main-nav {position:sticky;bottom:0;z-index:20;margin-top:auto;display:flex;justify-content:center;gap:6px;padding:10px 16px calc(10px + var(--safe-bottom));background:var(--bg-secondary);border-top:1px solid var(--border-color);}
 .main-nav button {min-height:44px;flex:1;max-width:210px;border-radius:10px;color:var(--text-muted);font-size:14px;font-weight:600;}
 .main-nav [aria-current] {background:var(--surface-tint);color:var(--text-main);}
 .home-screen,.progress-screen,.training-picker,.settings-screen,.review-screen,.assessment-screen {max-width:1050px;width:100%;margin:0 auto;padding:40px 28px 44px;}
@@ -2038,7 +2045,7 @@ select {display:block;width:100%;min-height:46px;padding:10px 12px;border:1px so
 .screen-header {margin-bottom:20px;gap:12px;}
 .screen-header h1 {font-size:22px;}
 .in-game .shell-header {display:none;}
-.compact-game {height:100dvh;max-height:100dvh;max-width:1280px;padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);margin:auto;width:100%;display:flex;flex-direction:column;overflow:hidden;}
+.compact-game {height:var(--app-height);max-height:var(--app-height);max-width:1280px;padding:0 20px var(--safe-bottom);margin:auto;width:100%;display:flex;flex-direction:column;overflow:hidden;}
 .compact-game .game-header {flex:none;height:54px;padding:0;border:0;gap:8px;}
 .game-mode-badge {font-size:12px;color:var(--text-muted);background:transparent;padding:0;}
 .game-status {display:flex;justify-content:space-between;gap:8px;font-size:12px;min-height:28px;align-items:center;padding:0 4px;}
@@ -2046,8 +2053,8 @@ select {display:block;width:100%;min-height:46px;padding:10px 12px;border:1px so
 .compact-game .game-layout {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.9fr);gap:28px;padding:0 0 16px;flex:1;min-height:0;overflow:hidden;align-items:start;}
 .compact-game .board-pane {min-width:0;display:flex;flex-direction:column;gap:10px;align-items:stretch;}
 .compact-game .board-wrapper {width:100%;gap:8px;align-items:stretch;}
-.compact-game .board-frame {width:min(100%,calc(100dvh - 215px));max-width:none;height:auto;aspect-ratio:1;margin:0;flex:none;border-radius:3px;box-shadow:none;}
-.compact-game .board-wrapper:has(.live-eval-bar) .board-frame {width:min(calc(100% - 24px),calc(100dvh - 215px));}
+.compact-game .board-frame {width:min(100%,calc(var(--app-height) - 215px - var(--safe-bottom)));max-width:none;height:auto;aspect-ratio:1;margin:0;flex:none;border-radius:3px;box-shadow:none;}
+.compact-game .board-wrapper:has(.live-eval-bar) .board-frame {width:min(calc(100% - 24px),calc(var(--app-height) - 215px - var(--safe-bottom)));}
 .compact-game .live-eval-bar {width:16px;flex:0 0 16px;min-width:16px;border-radius:3px;}
 .compact-game .live-eval-text {font-size:8px;}
 .compact-game .game-controls {display:flex;gap:8px;padding:0;border:0;box-shadow:none;background:transparent;flex-shrink:0;}
@@ -2104,14 +2111,14 @@ select {display:block;width:100%;min-height:46px;padding:10px 12px;border:1px so
  .assessment-entry .btn {margin:0;}
  .main-nav {padding-top:6px;}
  .page-intro {font-size:14px;margin-bottom:24px;}
- .compact-game {padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom);}
+ .compact-game {padding:0 12px var(--safe-bottom);}
  .compact-game .game-header {height:44px;}
  .compact-game .game-header .btn {min-height:40px;padding:8px;font-size:12px;}
  .game-status {min-height:24px;}
  .compact-game .game-layout {grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:10px;align-items:stretch;padding-bottom:10px;}
  .compact-game .board-pane {gap:8px;align-items:stretch;}
- .compact-game .board-frame {width:min(100%,calc(100dvh - 300px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));margin:auto;}
- .compact-game .board-wrapper:has(.live-eval-bar) .board-frame {width:min(calc(100% - 24px),calc(100dvh - 300px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));}
+ .compact-game .board-frame {width:min(100%,calc(var(--app-height) - 300px - var(--safe-bottom)));margin:auto;}
+ .compact-game .board-wrapper:has(.live-eval-bar) .board-frame {width:min(calc(100% - 24px),calc(var(--app-height) - 300px - var(--safe-bottom)));}
  .compact-game .board-wrapper {justify-content:center;}
  .compact-game .sidebar-pane {border-radius:12px;}
  .panel-tabs {padding:0 8px;}
@@ -2119,10 +2126,10 @@ select {display:block;width:100%;min-height:46px;padding:10px 12px;border:1px so
  .panel-scroll {padding:12px;}
  .compact-game .game-controls {gap:6px;}
  .compact-game .game-controls>.btn {min-height:44px;}
- .compact-training {height:calc(100dvh - 130px - env(safe-area-inset-bottom));overflow:hidden;display:flex;flex-direction:column;padding-top:12px;padding-bottom:12px;}
+ .compact-training {height:calc(var(--app-height) - 130px - var(--safe-bottom));overflow:hidden;display:flex;flex-direction:column;padding-top:12px;padding-bottom:12px;}
  .compact-training .screen-header {margin-bottom:8px;flex:none;font-size:12px;}
  .compact-training .training-layout {flex:1;min-height:0;grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px;padding:0;}
- .compact-training .board-frame {width:min(100%,calc(100dvh - 365px));margin:auto;}
+ .compact-training .board-frame {width:min(100%,calc(var(--app-height) - 365px - var(--safe-bottom)));margin:auto;}
  .compact-training .training-actions {margin-top:8px;}
  .compact-training .side-column {overflow:auto;min-height:0;padding:16px;}
  .compact-training .side-column h2 {font-size:18px;margin:4px 0 10px;}
@@ -2133,7 +2140,7 @@ select {display:block;width:100%;min-height:46px;padding:10px 12px;border:1px so
  .compact-game .game-header {height:40px;}
  .compact-game .game-layout {grid-template-columns:minmax(0,1fr) minmax(220px,1fr);grid-template-rows:minmax(0,1fr);gap:16px;}
  .compact-game .board-pane {height:100%;position:relative;gap:4px;}
- .compact-game .board-frame,.compact-game .board-wrapper:has(.live-eval-bar) .board-frame {width:min(100%,calc(100dvh - 185px));}
+ .compact-game .board-frame,.compact-game .board-wrapper:has(.live-eval-bar) .board-frame {width:min(100%,calc(var(--app-height) - 185px - var(--safe-bottom)));}
  .compact-game .clock-box {min-height:26px;padding:2px 8px;}
  .compact-game .clock-time {font-size:16px;}
  .compact-game .game-controls>.btn {min-height:40px;}

@@ -42,3 +42,16 @@ Dados são locais por navegador/origem; usar uma aba de jogo por vez. A origem d
 Em 03/11/2026, Victor relatou ausência do ícone no iPhone. O PNG publicado respondeu HTTP 200, `image/png`, 180 × 180: não era um arquivo ausente. Aplicado no build o workaround confirmado por Victor no app da Jacie (Gemma, 29/10): `apple-touch-icon` PNG embutido como data URI no HTML. O arquivo separado permanece disponível.
 
 Build para GitHub Pages e verificação offline aprovados; o script confere que a imagem embutida é idêntica ao PNG original. O hash do Service Worker agora também inclui HTML, ícone e manifesto, para que uma mudança nesses arquivos atualize o cache mesmo sem alterar JS/CSS. A confirmação visual do ícone neste app depende de novo teste do Victor no iPhone. O mesmo workaround não resolveu o Aggelos, portanto não é tratado como garantia universal.
+
+## Correção da área segura do iPhone
+
+Em 03/11/2026, Victor relatou cabeçalho atrás do notch. A área superior estava reservada somente na partida, deixando o cabeçalho geral sem proteção. O shell agora aplica os insets superior e laterais em todas as telas; partida e navegação mantêm o inset inferior, sem contá-lo duas vezes. Alturas do jogo, tabuleiro e treino descontam a área indisponível.
+
+Build e verificação offline aprovados. Conferência no navegador com fixtures locais de áreas seguras simuladas (não adicionadas ao app):
+
+- 390 × 844, topo 59 px e base 34 px: cabeçalho geral e da partida em y=59; partida termina em y=844; ações essenciais terminam em y=547; página sem overflow.
+- Treino na mesma tela: topo protegido, navegação termina em y=844 e página sem overflow.
+- 844 × 390, recuos laterais 59 px e base 21 px: cabeçalho entre x=79 e x=765; ações terminam em y=335,5; página sem overflow.
+- Sem notch simulado: cabeçalho permanece em y=0, sem margem fixa desnecessária.
+
+A conferência física em Safari/PWA continua com Victor; os insets de produção vêm de `env(safe-area-inset-*)`, não dos valores usados na simulação.
