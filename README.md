@@ -48,6 +48,8 @@ As posições são um recorte do [banco público do Lichess](https://database.li
 
 O build gera um Service Worker com cache versionado pelo hash dos arquivos. A instalação só conclui depois de guardar o shell, JavaScript, CSS e WASM. A navegação offline reconhece o subcaminho `/chesscoach/`. O Service Worker é registrado apenas em produção; use `npm run preview` para validar o pacote offline.
 
+O build embute o `apple-touch-icon` PNG de 180 × 180 no HTML para a instalação no iPhone; o arquivo PNG separado continua disponível. O hash do cache também considera HTML, ícone e manifesto.
+
 A primeira carga completa exige internet. Instale no iPhone pelo Safari: Compartilhar → Adicionar à Tela de Início. A validação em iPhone físico/Safari e da retomada após o iOS encerrar o processo continua pendente no aparelho físico.
 
 O GitHub Pages atualiza automaticamente após push em `main`. Victor autorizou o push e a publicação desta reformulação em 03/11/2026.

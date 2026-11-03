@@ -36,3 +36,9 @@ Validação pendente no iPhone físico:
 5. Validar com uso real a utilidade das explicações e a calibração de nível.
 
 Dados são locais por navegador/origem; usar uma aba de jogo por vez. A origem de desenvolvimento contém partidas e perfil sintéticos produzidos durante a validação. A publicação atualiza o app; não migra nem apaga os dados locais existentes.
+
+## Correção do ícone ao adicionar à tela inicial
+
+Em 03/11/2026, Victor relatou ausência do ícone no iPhone. O PNG publicado respondeu HTTP 200, `image/png`, 180 × 180: não era um arquivo ausente. Aplicado no build o workaround confirmado por Victor no app da Jacie (Gemma, 29/10): `apple-touch-icon` PNG embutido como data URI no HTML. O arquivo separado permanece disponível.
+
+Build para GitHub Pages e verificação offline aprovados; o script confere que a imagem embutida é idêntica ao PNG original. O hash do Service Worker agora também inclui HTML, ícone e manifesto, para que uma mudança nesses arquivos atualize o cache mesmo sem alterar JS/CSS. A confirmação visual do ícone neste app depende de novo teste do Victor no iPhone. O mesmo workaround não resolveu o Aggelos, portanto não é tratado como garantia universal.
