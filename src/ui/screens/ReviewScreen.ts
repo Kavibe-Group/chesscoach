@@ -25,6 +25,11 @@ export interface ReviewMistake {
 }
 
 export interface ReviewData {
+  storageWarning?: boolean;
+  id?: string;
+  mode?: 'study' | 'test';
+  eloBefore?: number;
+  eloAfter?: number;
   accuracy: number;
   acpl: number;
   moveCount: number;
@@ -82,26 +87,8 @@ export class ReviewScreen {
   }
 
   private processStatsAndUpdateProfile(): void {
-    const profile = getProfile();
-    if (!profile) return;
-
-    const eloBefore = profile.estimatedElo;
-    const gameStats: GameStats = {
-      accuracy: this.data.accuracy,
-      acpl: this.data.acpl,
-      moveCount: this.data.moveCount,
-      excellentMoves: this.data.excellentMoves,
-      goodMoves: this.data.goodMoves,
-      inaccuracies: this.data.inaccuracies,
-      mistakes: this.data.mistakes,
-      blunders: this.data.blunders,
-      result: this.data.result,
-      date: new Date().toISOString(),
-    };
-
-    saveGameStats(gameStats);
-    this.updatedProfile = updateEloAfterGame(profile, gameStats, this.data.analyzedMoves);
-    this.eloDelta = this.updatedProfile.estimatedElo - eloBefore;
+    this.updatedProfile = getProfile();
+    this.eloDelta = (this.data.eloAfter ?? this.updatedProfile?.estimatedElo ?? 0) - (this.data.eloBefore ?? this.updatedProfile?.estimatedElo ?? 0);
   }
 
   /**
@@ -177,6 +164,7 @@ export class ReviewScreen {
   }
 
   private getMiniLesson(): { title: string; text: string; icon: string } {
+    if (!this.data.moveCount) return {icon:'',title:'Ainda não há lances para analisar',text:'Jogue uma partida para receber uma revisão baseada nos seus lances.'};
     if (this.data.blunders > 0) {
       return {
         icon: '🛡️',
@@ -189,7 +177,7 @@ export class ReviewScreen {
       return {
         icon: '⚖️',
         title: 'Minilição: Cálculo de Trocas e Táticas',
-        text: 'Em disputas táticas, conte sempre o número de atacantes versus defensores. Se o adversário tiver mais peças atacando uma casa do que você tem defendendo, iniciar a troca naquela casa quase sempre perde material.',
+        text: 'Antes de uma troca, compare os valores das peças e a ordem das capturas. Procure também xeques e lances intermediários: contar atacantes e defensores sozinho não determina se a troca é boa.',
       };
     }
 
@@ -203,14 +191,15 @@ export class ReviewScreen {
 
     return {
       icon: '⭐',
-      title: 'Minilição: Partida de Alto Nível!',
-      text: 'Excelente precisão tática! Você manteve a posição equilibrada e aproveitou os lances com consistência. Continue mantendo esse foco nas próximas partidas.',
+      title: 'Continue observando ameaças',
+      text: 'Não foram classificados erros nos lances analisados. Continue conferindo xeques, capturas e ameaças antes de decidir; uma partida isolada não mede toda a sua força.',
     };
   }
 
   private render(): void {
     const profile = this.updatedProfile || getProfile();
-    const eloBand = profile ? getEloBand(profile.estimatedElo) : '';
+    const recordedElo = this.data.eloAfter ?? profile?.estimatedElo;
+    const eloBand = recordedElo ? getEloBand(recordedElo) : '';
     const lesson = this.getMiniLesson();
 
     const eloChangeClass = this.eloDelta >= 0 ? 'elo-up' : 'elo-down';
@@ -221,9 +210,9 @@ export class ReviewScreen {
       .slice(0, 3);
 
     const resultLabel = this.data.result === '1-0'
-      ? (this.playerColor === 'white' ? '🎉 Vitória!' : 'Derrota')
+      ? (this.playerColor === 'white' ? 'Vitória!' : 'Derrota')
       : this.data.result === '0-1'
-      ? (this.playerColor === 'black' ? '🎉 Vitória!' : 'Derrota')
+      ? (this.playerColor === 'black' ? 'Vitória!' : 'Derrota')
       : 'Empate (1/2-1/2)';
 
     const detectedOpening = detectOpening(this.replayMoves.map(m => m.san));
@@ -232,37 +221,36 @@ export class ReviewScreen {
       <div class="review-screen">
         <header class="review-header">
           <div class="review-title-row">
-            <span class="review-badge">Revisão Pós-Partida</span>
-            ${detectedOpening ? `<span class="review-opening-badge" title="${detectedOpening.description}">📖 ${detectedOpening.eco}: ${detectedOpening.name}</span>` : ''}
+            <span class="review-badge">${this.data.mode === 'study' ? 'Estudo · sem ajuste de Elo' : 'Revisão de Teste'}</span>
+            ${detectedOpening ? `<span class="review-opening-badge" title="${detectedOpening.description}">${detectedOpening.eco}: ${detectedOpening.name}</span>` : ''}
             <div class="review-tabs">
               <button type="button" class="tab-btn ${this.activeTab === 'summary' ? 'active' : ''}" id="tab-summary">
-                📊 Resumo & Estatísticas
+                Resumo & Estatísticas
               </button>
               <button type="button" class="tab-btn ${this.activeTab === 'replay' ? 'active' : ''}" id="tab-replay">
-                🔍 Análise Lance a Lance
+                Análise Lance a Lance
               </button>
             </div>
           </div>
           <h1 class="review-result-title">${resultLabel}</h1>
         </header>
 
+        ${this.data.storageWarning ? '<p class="storage-warning" role="alert">Não foi possível guardar esta partida no aparelho. A revisão pode ser perdida ao fechar o app.</p>' : ''}
         <!-- ABA 1: RESUMO DA PARTIDA -->
         <div id="view-summary" class="review-tab-content ${this.activeTab === 'summary' ? 'active' : ''}">
           <!-- Cartão de Elo e Adaptação do Motor -->
           <div class="card elo-adaptation-card">
             <div class="elo-adaptation-header">
-              <span class="coach-badge">🤖 Treinador Dinâmico</span>
+              <span class="coach-badge">Treinador Dinâmico</span>
               <span class="elo-delta-tag ${eloChangeClass}">Elo ${eloChangeText}</span>
             </div>
             <div class="elo-adaptation-body">
               <div class="elo-big-number">
-                <span class="val">${profile?.estimatedElo ?? '—'}</span>
+                <span class="val">${recordedElo ?? '—'}</span>
                 <span class="band">${eloBand}</span>
               </div>
               <p class="elo-adaptation-desc">
-                ${this.eloDelta >= 0
-                  ? `Excelente jogo! O motor oponente elevou o nível para <strong>Elo ~${(profile?.estimatedElo ?? 1000) + 50}</strong> para calibrar seu próximo desafio.`
-                  : `Partida difícil! O motor ajustou o nível para <strong>Elo ~${(profile?.estimatedElo ?? 1000) + 50}</strong> para consolidar seus fundamentos.`}
+                ${this.data.mode === 'study' ? 'Partida de estudo: o Elo permanece igual. Use a revisão para escolher o que praticar.' : 'Estimativa registrada ao concluir este teste. Reabrir a revisão não altera seu nível.'}
               </p>
             </div>
           </div>
@@ -271,11 +259,11 @@ export class ReviewScreen {
           <div class="card stats-overview-card">
             <div class="stats-overview-grid">
               <div class="overview-item">
-                <span class="overview-value">${this.data.accuracy}%</span>
+                <span class="overview-value">${this.data.moveCount ? this.data.accuracy + '%' : '—'}</span>
                 <span class="overview-label">Precisão</span>
               </div>
               <div class="overview-item">
-                <span class="overview-value">${this.data.acpl}</span>
+                <span class="overview-value">${this.data.moveCount ? this.data.acpl : '—'}</span>
                 <span class="overview-label">ACPL (Perda média)</span>
               </div>
               <div class="overview-item">
@@ -297,14 +285,14 @@ export class ReviewScreen {
           <!-- Os 3 Momentos Mais Caros -->
           <div class="card top-mistakes-card">
             <div class="card-header-flex">
-              <h2>🎯 Momentos Críticos da Partida</h2>
+              <h2>Momentos Críticos da Partida</h2>
               <button type="button" class="btn btn-secondary btn-sm" id="btn-jump-to-first-mistake">
                 Examinar no Tabuleiro →
               </button>
             </div>
 
             ${top3Mistakes.length === 0 ? `
-              <p class="no-mistakes-msg">Nenhum erro grave detectado nesta partida! Parabéns pelo jogo sólido.</p>
+              <p class="no-mistakes-msg">${this.data.moveCount ? 'Nenhum erro classificado nos lances analisados.' : 'Esta partida terminou sem lances analisados.'}</p>
             ` : `
               <div class="mistakes-list">
                 ${top3Mistakes.map((m, idx) => `
@@ -338,15 +326,15 @@ export class ReviewScreen {
           <div class="review-actions">
             <div class="actions-row">
               <button type="button" class="btn btn-primary btn-xl" id="btn-review-play-again">
-                ⚔️ Jogar Novamente
+                Jogar Novamente
               </button>
               <button type="button" class="btn btn-secondary btn-xl" id="btn-review-go-training">
-                🧩 Treinar meus erros
+                Treinar meus erros
               </button>
             </div>
             <div class="secondary-row">
               <button type="button" class="btn btn-ghost" id="btn-copy-pgn">
-                📋 Copiar PGN da partida
+                Copiar PGN da partida
               </button>
               <button type="button" class="btn btn-ghost" id="btn-review-go-home">
                 ← Menu Principal
@@ -378,7 +366,7 @@ export class ReviewScreen {
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-replay-end" title="Último lance">▶|</button>
                 </div>
                 <button type="button" class="btn btn-danger btn-sm" id="btn-replay-next-mistake" title="Pular para o próximo erro">
-                  ⚡ Próximo Erro
+                  Próximo Erro
                 </button>
               </div>
 
@@ -391,7 +379,7 @@ export class ReviewScreen {
               <div class="card replay-moves-scroll">
                 <div class="moves-header">
                   <h3>Lances da Partida</h3>
-                  <span class="keyboard-tip">💡 Use as setas ← e → do teclado</span>
+                  <span class="keyboard-tip">Use as setas ← e → do teclado</span>
                 </div>
                 <div class="moves-grid" id="replay-moves-list">
                   <!-- Gerado dinamicamente -->

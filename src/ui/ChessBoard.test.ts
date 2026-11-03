@@ -42,3 +42,13 @@ describe('ChessBoard - BUG-10 (autoCastle e blockTouchScroll)', () => {
     board.destroy();
   });
 });
+
+it('does not apply a promotion resolved after the board is destroyed',async()=>{
+ const {ChessBoard}=await import('./ChessBoard');
+ const game=new GameController('7k/P7/8/8/8/8/8/7K w - - 0 1');
+ const board=new ChessBoard({classList:{add:vi.fn()}} as unknown as HTMLElement,game,'white');
+ let resolve!:(piece:string)=>void;
+ (board as any).promotionModal.open=()=>new Promise<string>(r=>resolve=r);
+ const fen=game.getFen();const pending=(board as any).handleUserMove('a7','a8');board.destroy();resolve('q');await pending;
+ expect(game.getFen()).toBe(fen);
+});

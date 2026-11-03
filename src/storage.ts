@@ -21,6 +21,7 @@ class MemoryStorage {
 }
 
 class SafeStorage {
+  durable = false;
   private fallback = new MemoryStorage();
 
   getItem(key: string): string | null {
@@ -38,11 +39,13 @@ class SafeStorage {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(key, value);
+        this.durable = localStorage.getItem(key) === value;
         return;
       }
     } catch {
       // Falha defensiva para modo anônimo / quota
     }
+    this.durable = false;
     this.fallback.setItem(key, value);
   }
 
@@ -79,4 +82,13 @@ export function getStorage(): {
   clear(): void;
 } {
   return safeStorageInstance;
+}
+
+/** True only after a write was read back from browser storage. */
+export function isStorageDurable(): boolean { return safeStorageInstance.durable; }
+
+/** Node tests may use memory; a browser that denies storage must report failure. */
+export function storageWriteSucceeded(): boolean {
+  try { return typeof localStorage === 'undefined' || isStorageDurable(); }
+  catch { return false; }
 }

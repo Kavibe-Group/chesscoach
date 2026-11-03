@@ -87,6 +87,7 @@ export class PromotionModal {
   }
 
   destroy(): void {
+    this.close(undefined);
     this.element.remove();
   }
 }

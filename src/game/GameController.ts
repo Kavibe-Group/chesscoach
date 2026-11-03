@@ -161,6 +161,10 @@ export class GameController {
    * Carrega uma posição a partir de uma string FEN.
    * Retorna true se a FEN for válida e carregada com sucesso; false se for inválida.
    */
+  loadPgn(pgn: string): boolean {
+    try { const restored = new Chess(); restored.loadPgn(pgn); this.chess = restored; return true; } catch { return false; }
+  }
+
   loadFen(fen: string): boolean {
     try {
       this.chess.load(fen);

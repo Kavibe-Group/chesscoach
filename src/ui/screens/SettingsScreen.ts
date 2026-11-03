@@ -27,6 +27,7 @@ export class SettingsScreen {
         </header>
 
         <div class="settings-card card">
+          <div class="setting-group"><label class="setting-title" for="app-theme">Aparência do app</label><select id="app-theme">${[['system','Seguir o aparelho'],['light','Claro'],['dark','Escuro']].map(([value,label])=>`<option value="${value}" ${settings.appTheme === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
           <!-- Cor das peças -->
           <div class="setting-group">
             <label class="setting-title">Cor das Peças para Jogar</label>
@@ -47,19 +48,19 @@ export class SettingsScreen {
             <p class="setting-desc">Escolha partidas de estudo livre ou com controle de tempo.</p>
             <div class="segmented-control clock-grid">
               <button type="button" class="segment-btn ${settings.clockMinutes === 0 ? 'active' : ''}" data-clock="0">
-                ⌛ Sem Relógio (Estudo)
+                Sem Relógio (Estudo)
               </button>
               <button type="button" class="segment-btn ${settings.clockMinutes === 3 ? 'active' : ''}" data-clock="3">
-                ⚡ 3 min (Blitz)
+                3 min (Blitz)
               </button>
               <button type="button" class="segment-btn ${settings.clockMinutes === 5 ? 'active' : ''}" data-clock="5">
-                🔥 5 min (Blitz)
+                5 min (Blitz)
               </button>
               <button type="button" class="segment-btn ${settings.clockMinutes === 10 ? 'active' : ''}" data-clock="10">
-                ⏱️ 10 min (Rápida)
+                10 min (Rápida)
               </button>
               <button type="button" class="segment-btn ${settings.clockMinutes === 15 ? 'active' : ''}" data-clock="15">
-                ⏳ 15 min (Rápida)
+                15 min (Rápida)
               </button>
             </div>
           </div>
@@ -71,7 +72,7 @@ export class SettingsScreen {
             <div class="toggle-list">
               <label class="toggle-item">
                 <div class="toggle-info">
-                  <span class="toggle-label">🔊 Efeitos Sonoros</span>
+                  <span class="toggle-label">Efeitos Sonoros</span>
                   <span class="toggle-subtext">Sons sintetizados de peças, capturas, xeques e alertas</span>
                 </div>
                 <input type="checkbox" id="toggle-sound" class="switch-input" ${settings.soundEnabled ? 'checked' : ''} />
@@ -79,7 +80,7 @@ export class SettingsScreen {
 
               <label class="toggle-item">
                 <div class="toggle-info">
-                  <span class="toggle-label">📊 Barra de Avaliação ao Vivo</span>
+                  <span class="toggle-label">Barra de Avaliação ao Vivo</span>
                   <span class="toggle-subtext">Mostra a barra dinâmica com a vantagem em centipeões</span>
                 </div>
                 <input type="checkbox" id="toggle-eval-bar" class="switch-input" ${settings.showEvalBar ? 'checked' : ''} />
@@ -87,7 +88,7 @@ export class SettingsScreen {
 
               <label class="toggle-item">
                 <div class="toggle-info">
-                  <span class="toggle-label">🎯 Mostrar Lances Legais</span>
+                  <span class="toggle-label">Mostrar Lances Legais</span>
                   <span class="toggle-subtext">Pontos nas casas possíveis ao clicar em uma peça</span>
                 </div>
                 <input type="checkbox" id="toggle-legal-moves" class="switch-input" ${settings.showLegalMoves ? 'checked' : ''} />
@@ -95,7 +96,7 @@ export class SettingsScreen {
 
               <label class="toggle-item">
                 <div class="toggle-info">
-                  <span class="toggle-label">💡 Destacar Último Lance e Xeque</span>
+                  <span class="toggle-label">Destacar Último Lance e Xeque</span>
                   <span class="toggle-subtext">Realça a casa de origem/destino e rei ameaçado</span>
                 </div>
                 <input type="checkbox" id="toggle-highlights" class="switch-input" ${settings.showHighlights ? 'checked' : ''} />
@@ -109,7 +110,7 @@ export class SettingsScreen {
             <p class="setting-desc">Ajuste se deseja desafio adaptativo automático ou controle manual.</p>
             <div class="segmented-control">
               <button type="button" class="segment-btn ${settings.engineStrengthMode === 'auto' ? 'active' : ''}" data-mode="auto">
-                🎯 Automático (Seu Elo + 50)
+                Automático (Seu Elo + 50)
               </button>
               <button type="button" class="segment-btn ${settings.engineStrengthMode === 'manual' ? 'active' : ''}" data-mode="manual">
                 🎛️ Manual
@@ -129,22 +130,22 @@ export class SettingsScreen {
             <label class="setting-title">Tema do Tabuleiro</label>
             <div class="segmented-control themes-grid">
               <button type="button" class="segment-btn ${settings.boardTheme === 'brown' ? 'active' : ''}" data-theme="brown">
-                🟫 Marrom Clássico
+                Marrom Clássico
               </button>
               <button type="button" class="segment-btn ${settings.boardTheme === 'green' ? 'active' : ''}" data-theme="green">
-                🟩 Verde Torneio
+                Verde Torneio
               </button>
               <button type="button" class="segment-btn ${settings.boardTheme === 'blue' ? 'active' : ''}" data-theme="blue">
-                🟦 Azul Oceano
+                Azul Oceano
               </button>
               <button type="button" class="segment-btn ${settings.boardTheme === 'wood' ? 'active' : ''}" data-theme="wood">
-                🪵 Madeira Nobre
+                Madeira Nobre
               </button>
               <button type="button" class="segment-btn ${settings.boardTheme === 'dark' ? 'active' : ''}" data-theme="dark">
-                ⬛ Minimalista Escuro
+                Minimalista Escuro
               </button>
               <button type="button" class="segment-btn ${settings.boardTheme === 'contrast' ? 'active' : ''}" data-theme="contrast">
-                🏁 Alto Contraste
+                Alto Contraste
               </button>
             </div>
           </div>
@@ -154,10 +155,10 @@ export class SettingsScreen {
             <label class="setting-title">Gerenciamento de Dados</label>
             <div class="danger-actions">
               <button type="button" class="btn btn-secondary" id="btn-redo-assessment">
-                🔄 Refazer Avaliação de Nível
+                Refazer Avaliação de Nível
               </button>
               <button type="button" class="btn btn-danger" id="btn-clear-all-data">
-                🗑️ Limpar Todos os Dados e Histórico
+                Limpar Todos os Dados e Histórico
               </button>
             </div>
           </div>
@@ -172,6 +173,10 @@ export class SettingsScreen {
     `;
 
     // Listeners para controles
+    this.container.querySelector('#app-theme')?.addEventListener('change', event => {
+      const appTheme = (event.target as HTMLSelectElement).value as 'system'|'light'|'dark';
+      saveSettings({appTheme}); document.documentElement.dataset.theme = appTheme;
+    });
     this.container.querySelectorAll('[data-color]').forEach(btn => {
       btn.addEventListener('click', () => {
         this.container.querySelectorAll('[data-color]').forEach(b => b.classList.remove('active'));

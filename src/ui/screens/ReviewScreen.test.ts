@@ -48,7 +48,7 @@ describe('ReviewScreen - Fase 2 & 4 (Análise Pós-Partida Completa & Elo Dinâm
     createProfile(1200);
   });
 
-  it('calcula o Elo delta dinâmico e atualiza o perfil pós-jogo', () => {
+  it('abrir uma revisão não altera o perfil ou o Elo', () => {
     const container = createMockContainer();
     const mockData: ReviewData = {
       accuracy: 85,
@@ -72,8 +72,8 @@ describe('ReviewScreen - Fase 2 & 4 (Análise Pós-Partida Completa & Elo Dinâm
     const profile = getProfile();
     expect(profile).toBeDefined();
     // Vitória (+15) + ACPL excelente (+15) = +30 Elo
-    expect(profile!.estimatedElo).toBe(1230);
-    expect((screen as any).eloDelta).toBe(30);
+    expect(profile!.estimatedElo).toBe(1200);
+    expect((screen as any).eloDelta).toBe(0);
 
     screen.destroy();
   });

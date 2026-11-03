@@ -3,7 +3,7 @@
 
 import type { AssessmentPuzzle } from '../data/puzzles.js';
 import { ASSESSMENT_PUZZLES } from '../data/puzzles.js';
-import { createProfile } from '../profile/ProfileManager.js';
+import { createProfile, getProfile, saveProfile } from '../profile/ProfileManager.js';
 import type { PlayerProfile } from '../profile/ProfileManager.js';
 
 export interface PuzzleResult {
@@ -78,7 +78,11 @@ export function completeAssessment(
   const eloBand = getEloBandLabel(estimatedElo);
 
   // Create and persist the profile
-  createProfile(estimatedElo);
+  const existing = getProfile();
+  if (existing) {
+    existing.estimatedElo = estimatedElo; existing.provisional = false; existing.assessmentCompleted = true;
+    existing.eloHistory.push({date:new Date().toISOString(),elo:estimatedElo}); saveProfile(existing);
+  } else createProfile(estimatedElo);
 
   return {
     puzzleResults,

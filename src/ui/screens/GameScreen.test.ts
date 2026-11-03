@@ -181,6 +181,7 @@ describe('GameScreen - BUG-01 (Fluxo de Tentar de Novo e Cancelamento)', () => {
     (screen as any).isEngineThinking = true;
 
     // Inicia nova partida
+    (screen as any).ready = true;
     await screen.handleNewGame(true);
 
     expect(stopSpy).toHaveBeenCalled();

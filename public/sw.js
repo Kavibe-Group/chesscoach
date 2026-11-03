@@ -1,4 +1,5 @@
-const CACHE_NAME = 'xadrez-coach-v2';
+const CACHE_NAME = 'xadrez-coach-v3-__BUILD_VERSION__';
+const BUILD_ASSETS = __BUILD_ASSETS__;
 
 self.addEventListener('install', (event) => {
   const scope = self.registration.scope;
@@ -16,20 +17,9 @@ self.addEventListener('install', (event) => {
   ];
 
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return Promise.all(
-        assets.map((asset) => {
-          return fetch(asset)
-            .then((res) => {
-              if (res.ok) {
-                return cache.put(asset, res);
-              }
-            })
-            .catch((err) => {
-              console.warn('[SW] Falha ao pré-cachear asset:', asset, err);
-            });
-        })
-      );
+    caches.open(CACHE_NAME).then(async cache => {
+      // Atomic installation: do not activate a new shell without its scripts/WASM.
+      await cache.addAll([...assets, ...BUILD_ASSETS.map(path => scope + path)]);
     }).then(() => self.skipWaiting())
   );
 });
@@ -38,7 +28,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.filter((key) => key.startsWith('xadrez-coach-') && key !== CACHE_NAME).map((key) => caches.delete(key))
       );
     }).then(() => self.clients.claim())
   );

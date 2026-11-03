@@ -28,7 +28,9 @@ export type TacticalCategory =
   | 'captura_perdida'
   | 'seguranca_rei'
   | 'desenvolvimento'
-  | 'posicional';
+  | 'posicional'
+  | 'ataque_descoberto'
+  | 'defesa';
 
 export interface TacticalShape {
   orig: string;
@@ -42,6 +44,8 @@ export interface PvMove {
 }
 
 export interface MoveAnalysis {
+  fenBefore?: string;
+  fenAfter?: string;
   quality: MoveQuality;
   /** Rótulo de exibição em PT-BR */
   label: string;
@@ -126,6 +130,8 @@ export const CATEGORY_LABELS: Record<TacticalCategory, string> = {
   seguranca_rei: 'Segurança do Rei',
   desenvolvimento: 'Desenvolvimento',
   posicional: 'Posicional',
+  ataque_descoberto: 'Ataque descoberto',
+  defesa: 'Defesa contra ameaças',
 };
 
 /** Valor sentinela de perda de cp para situações de mate */

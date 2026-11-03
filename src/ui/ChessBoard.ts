@@ -25,6 +25,7 @@ export class ChessBoard {
   private playerColor: 'white' | 'black' = 'white';
   private onMoveCallback: ((event: MoveEvent) => void) | null = null;
   private isInteractive = true;
+  private destroyed = false;
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimer: number | null = null;
 
@@ -64,7 +65,7 @@ export class ChessBoard {
       autoCastle: true,
       blockTouchScroll: true,
       animation: {
-        enabled: true,
+        enabled: typeof window === 'undefined' || !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
         duration: 200,
       },
       highlight: {
@@ -103,6 +104,7 @@ export class ChessBoard {
   }
 
   private async handleUserMove(orig: Key, dest: Key): Promise<void> {
+    if (this.destroyed || !this.isInteractive) return;
     if (orig === 'a0' || dest === 'a0') {
       this.sync();
       return;
@@ -118,6 +120,7 @@ export class ChessBoard {
 
       if (isWhitePromotion || isBlackPromotion) {
         promotion = await this.promotionModal.open(this.playerColor);
+        if (this.destroyed || !this.isInteractive) { if (!this.destroyed) this.sync(); return; }
         if (!promotion) {
           // Promoção cancelada pelo usuário: restaura o tabuleiro
           this.sync();
@@ -162,6 +165,7 @@ export class ChessBoard {
    * Sincroniza o tabuleiro visual com o estado do GameController
    */
   sync(): void {
+    if (this.destroyed) return;
     const settings = getSettings();
     const turn = this.game.turn() === 'w' ? 'white' : 'black';
     const isPlayerTurn = turn === this.playerColor && this.isInteractive && !this.game.isGameOver();
@@ -277,6 +281,7 @@ export class ChessBoard {
   }
 
   destroy(): void {
+    this.destroyed = true; this.isInteractive = false;
     if (this.resizeTimer !== null) {
       cancelAnimationFrame(this.resizeTimer);
       this.resizeTimer = null;

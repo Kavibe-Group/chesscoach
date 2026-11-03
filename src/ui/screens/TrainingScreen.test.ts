@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TrainingScreen } from './TrainingScreen';
-import { addTrainingPosition } from '../../training/TrainingManager';
+import { addTrainingPosition, selectTrainingSession } from '../../training/TrainingManager';
 import { getStorage } from '../../storage';
 
 vi.mock('../ChessBoard', () => {
@@ -72,6 +72,8 @@ describe('TrainingScreen - BUG-06 (Avançar índice de exercício ao clicar pró
       onBack: vi.fn(),
     });
 
+    (screen as any).queue = selectTrainingSession('errors',5);
+    screen.render();
     expect((screen as any).queue.length).toBe(2);
     expect((screen as any).currentIdx).toBe(0);
 
@@ -87,11 +89,13 @@ describe('TrainingScreen - BUG-06 (Avançar índice de exercício ao clicar pró
     // Deve ter avançado para o índice 1 (Erro 2)
     expect((screen as any).currentIdx).toBe(1);
 
-    // Clica em "Próximo exercício" novamente
+    // Responde o segundo exercício e encerra a sessão, sem rotação circular.
+    (screen as any).handlePlayerMove('h2h3');
     btnNext.click();
 
     // Deve voltar ao índice 0 em rotação circular
-    expect((screen as any).currentIdx).toBe(0);
+    expect((screen as any).currentIdx).toBe(2);
+    expect(container.innerHTML).toContain('SESSÃO CONCLUÍDA');
 
     screen.destroy();
   });

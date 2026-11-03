@@ -11,7 +11,7 @@ if (rootEl) {
 }
 
 // Registro de Service Worker para funcionalidade PWA offline (WASM + UI)
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) ? import.meta.env.BASE_URL : './';
     const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';

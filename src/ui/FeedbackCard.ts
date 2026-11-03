@@ -1,3 +1,4 @@
+import { explainPosition, escapeHtml } from '../analysis/Coach.js';
 import type { MoveAnalysis } from '../analysis/MoveAnalyzer.js';
 
 export class FeedbackCard {
@@ -45,12 +46,16 @@ export class FeedbackCard {
          </button>`
       : '';
 
+    let alternative = '';
+    if (analysis.fenBefore && analysis.bestMove && analysis.quality !== 'excelente') {
+      try { alternative = explainPosition(analysis.fenBefore, analysis.bestMove).answer; } catch { /* Older records. */ }
+    }
     const bestMoveInfo = analysis.bestMoveSan
       ? `<div class="feedback-best-move">
            <span class="label">Recomendação do motor:</span>
            <span class="value">${analysis.bestMoveSan}</span>
            <button type="button" class="btn-toggle-arrow" id="btn-toggle-best-move">
-             🎯 Ver no tabuleiro
+             Ver no tabuleiro
            </button>
          </div>`
       : '';
@@ -92,6 +97,7 @@ export class FeedbackCard {
           ${analysis.explanation}
         </p>
 
+        ${alternative ? `<p class="feedback-explanation">${escapeHtml(alternative)}</p>` : ''}
         ${bestMoveInfo}
         ${legendHtml}
         ${refutationHtml}
@@ -116,7 +122,7 @@ export class FeedbackCard {
     if (btnArrow) {
       btnArrow.addEventListener('click', () => {
         this.isArrowShown = !this.isArrowShown;
-        btnArrow.textContent = this.isArrowShown ? 'Ocultar setas' : '🎯 Ver no tabuleiro';
+        btnArrow.textContent = this.isArrowShown ? 'Ocultar setas' : 'Ver no tabuleiro';
         if (legendEl) {
           legendEl.style.display = this.isArrowShown ? 'flex' : 'none';
         }

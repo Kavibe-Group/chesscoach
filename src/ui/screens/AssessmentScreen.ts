@@ -414,7 +414,7 @@ export class AssessmentScreen {
           </p>
 
           <button type="button" class="btn btn-primary btn-xl" id="btn-finish-assessment">
-            ⚔️ Jogar minha primeira partida
+            Jogar minha primeira partida
           </button>
         </div>
       </div>

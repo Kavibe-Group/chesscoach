@@ -1,6 +1,8 @@
 import { getStorage } from '../storage.js';
 
 export interface AppSettings {
+  appTheme?: 'system' | 'light' | 'dark';
+  gameMode?: 'study' | 'test';
   playerColor: 'white' | 'black';
   clockMinutes: number; // 0 = sem relógio (estudo), 3, 5, 10, 15
   engineStrengthMode: 'auto' | 'manual';
@@ -15,6 +17,8 @@ export interface AppSettings {
 const SETTINGS_KEY = 'xadrez-coach-settings';
 
 const DEFAULT_SETTINGS: AppSettings = {
+  appTheme: 'system',
+  gameMode: 'study',
   playerColor: 'white',
   clockMinutes: 0,
   engineStrengthMode: 'auto',
@@ -35,6 +39,8 @@ export function getSettings(): AppSettings {
       return { ...DEFAULT_SETTINGS };
     }
     return {
+      appTheme: ['light', 'dark'].includes(parsed.appTheme) ? parsed.appTheme : 'system',
+      gameMode: parsed.gameMode === 'test' ? 'test' : 'study',
       playerColor: parsed.playerColor === 'black' ? 'black' : 'white',
       clockMinutes: typeof parsed.clockMinutes === 'number' ? parsed.clockMinutes : DEFAULT_SETTINGS.clockMinutes,
       engineStrengthMode: parsed.engineStrengthMode === 'manual' ? 'manual' : DEFAULT_SETTINGS.engineStrengthMode,

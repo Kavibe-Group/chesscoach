@@ -5,6 +5,7 @@ import { getStorage } from '../storage.js';
 import type { MoveAnalysis } from '../analysis/MoveAnalyzer.js';
 
 export interface PlayerProfile {
+  provisional?: boolean;
   estimatedElo: number;
   eloHistory: { date: string; elo: number }[];
   gamesPlayed: number;
@@ -18,6 +19,9 @@ export interface PlayerProfile {
 }
 
 export interface GameStats {
+  id?: string;
+  mode?: 'study' | 'test';
+  playerColor?: 'white' | 'black';
   accuracy: number;      // percentage of good+ moves
   acpl: number;          // average centipawn loss
   moveCount: number;
@@ -42,6 +46,9 @@ export function getProfile(): PlayerProfile | null {
       return null;
     }
     return {
+      provisional: Boolean(parsed.provisional),
+      streakDays: parsed.streakDays || 0,
+      lastActiveDate: parsed.lastActiveDate,
       estimatedElo: parsed.estimatedElo,
       eloHistory: Array.isArray(parsed.eloHistory) ? parsed.eloHistory : [],
       gamesPlayed: typeof parsed.gamesPlayed === 'number' ? parsed.gamesPlayed : 0,
@@ -56,7 +63,7 @@ export function getProfile(): PlayerProfile | null {
   }
 }
 
-export function recordDailyActivity(profile: PlayerProfile): PlayerProfile {
+export function recordDailyActivity(profile: PlayerProfile, persist = true): PlayerProfile {
   const today = new Date().toISOString().slice(0, 10);
   const lastDate = profile.lastActiveDate ? profile.lastActiveDate.slice(0, 10) : null;
 
@@ -79,7 +86,7 @@ export function recordDailyActivity(profile: PlayerProfile): PlayerProfile {
     profile.lastActiveDate = today;
   }
 
-  saveProfile(profile);
+  if (persist) saveProfile(profile);
   return profile;
 }
 
@@ -106,9 +113,10 @@ export function createProfile(estimatedElo: number): PlayerProfile {
 export function updateEloAfterGame(
   profile: PlayerProfile,
   gameStats: GameStats,
-  analyzedMoves?: MoveAnalysis[]
+  analyzedMoves?: MoveAnalysis[],
+  persist = true
 ): PlayerProfile {
-  recordDailyActivity(profile);
+  recordDailyActivity(profile, persist);
 
   // Adapt Elo based on result + ACPL
   // Rise/fall slowly: 15-30 points per game
@@ -116,9 +124,11 @@ export function updateEloAfterGame(
   let eloChange = 0;
 
   // Result-based adjustment
-  if (gameStats.result === '1-0') {
+  const won = gameStats.playerColor === 'black' ? '0-1' : '1-0';
+  const lost = gameStats.playerColor === 'black' ? '1-0' : '0-1';
+  if (gameStats.result === won) {
     eloChange += 15; // Player won
-  } else if (gameStats.result === '0-1') {
+  } else if (gameStats.result === lost) {
     eloChange -= 15; // Player lost
   }
   // else draw: no change from result
@@ -133,6 +143,8 @@ export function updateEloAfterGame(
   // Clamp change to [-30, 30]
   eloChange = Math.max(-30, Math.min(30, eloChange));
 
+  if (gameStats.mode === 'study') eloChange = 0;
+  else profile.provisional = false;
   profile.estimatedElo = Math.max(400, profile.estimatedElo + eloChange);
   profile.gamesPlayed += 1;
 
@@ -145,7 +157,7 @@ export function updateEloAfterGame(
       profile.gamesPlayed;
   }
 
-  profile.eloHistory.push({
+  if (gameStats.mode !== 'study') profile.eloHistory.push({
     date: new Date().toISOString(),
     elo: profile.estimatedElo,
   });
@@ -177,7 +189,7 @@ export function updateEloAfterGame(
       (profile.errorCategories['erro_grave'] || 0) + gameStats.blunders;
   }
 
-  saveProfile(profile);
+  if (persist) saveProfile(profile);
   return profile;
 }
 
@@ -214,6 +226,7 @@ export function getGameStatsHistory(): GameStats[] {
 
 export function saveGameStats(stats: GameStats): void {
   const history = getGameStatsHistory();
+  if (stats.id && history.some(s => s.id === stats.id)) return;
   history.push(stats);
   // Keep last 100 games
   if (history.length > 100) history.shift();

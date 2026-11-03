@@ -2,10 +2,12 @@
 // Positions from player's real errors, supplemented by curated daily puzzles
 
 import { getStorage } from '../storage.js';
-import { ASSESSMENT_PUZZLES } from '../data/puzzles.js';
+import { TRAINING_PUZZLES } from '../data/trainingPuzzles.js';
 import type { TacticalCategory } from '../analysis/MoveAnalyzer.js';
 
 export interface TrainingPosition {
+  solution?: readonly string[];
+  source?: string;
   id: string;
   fen: string;              // position where the error happened
   bestMove: string;         // correct move in UCI
@@ -79,11 +81,12 @@ export function removeTrainingPosition(fen: string): void {
   }
 }
 
-export function recordTrainingAttempt(id: string, wasCorrect: boolean): TrainingPosition | null {
+export function recordTrainingAttempt(id: string, wasCorrect: boolean, assisted = false): TrainingPosition | null {
   const queue = getTrainingQueue();
   const pos = queue.find(p => p.id === id);
   if (!pos) return null;
 
+  if (assisted) wasCorrect = false;
   const now = new Date();
   pos.attempts += 1;
   pos.lastReviewedDate = now.toISOString();
@@ -104,6 +107,7 @@ export function recordTrainingAttempt(id: string, wasCorrect: boolean): Training
     nextDate.setDate(nextDate.getDate() + intervalDays);
     pos.nextReviewDate = nextDate.toISOString();
   } else {
+    pos.mastered = false;
     pos.consecutiveCorrect = 0;
     pos.srsLevel = 0;
     pos.nextReviewDate = now.toISOString(); // Revisão imediata
@@ -130,52 +134,31 @@ export function getTotalTrainingCount(): number {
  */
 export function getDueTrainingPositions(): TrainingPosition[] {
   const nowIso = new Date().toISOString();
-  return getTrainingQueue().filter(p => !p.mastered || (p.nextReviewDate && p.nextReviewDate <= nowIso));
+  return getTrainingQueue().filter(p => !p.nextReviewDate || p.nextReviewDate <= nowIso);
 }
 
 /**
  * Retorna a sessão de Puzzles Diários (puzzles devidos do SRS + acervo curado para completar a meta)
  */
 export function getDailyPuzzles(limit = 5): TrainingPosition[] {
+  return selectTrainingSession('daily', limit);
+}
+export type TrainingSource = 'daily' | 'errors' | 'theme';
+export const TRAINING_THEMES: TacticalCategory[] = ['mate_perdido','garfo','cravada','ataque_descoberto','peca_pendurada','defesa'];
+function curatedPosition(p: typeof TRAINING_PUZZLES[number]): TrainingPosition {
+  return {...p, solution:[...p.solution], playerMove:'—',errorType:'puzzle_diario',cpLoss:0,attempts:0,correct:0,mastered:false,consecutiveCorrect:0,dateAdded:new Date().toISOString(),gameIndex:0,srsLevel:0,isCuratedPuzzle:true};
+}
+/** Freeze this result at session start. Daily never pulls scheduled items early. */
+export function selectTrainingSession(source: TrainingSource, limit: number, category?: TacticalCategory): TrainingPosition[] {
   const queue = getTrainingQueue();
-  const nowIso = new Date().toISOString();
-
-  // 1. Posições de erros reais que estão prontas para revisão hoje
-  const due = queue.filter(p => !p.nextReviewDate || p.nextReviewDate <= nowIso);
-
-  // 2. Outras posições ativas da fila
-  const otherActive = queue.filter(p => !p.mastered && !due.includes(p));
-
-  const result: TrainingPosition[] = [...due, ...otherActive];
-
-  // 3. Se ainda não atingiu o limite, completa com puzzles curados do acervo
-  if (result.length < limit) {
-    for (const puzzle of ASSESSMENT_PUZZLES) {
-      if (result.length >= limit) break;
-      if (result.some(r => r.fen === puzzle.fen)) continue;
-
-      result.push({
-        id: `curated-${puzzle.id}`,
-        fen: puzzle.fen,
-        bestMove: puzzle.solution,
-        bestMoveSan: puzzle.solutionSan,
-        playerMove: '—',
-        explanation: puzzle.description,
-        errorType: 'puzzle_diario',
-        cpLoss: 500,
-        attempts: 0,
-        correct: 0,
-        mastered: false,
-        consecutiveCorrect: 0,
-        dateAdded: nowIso,
-        gameIndex: 0,
-        category: 'posicional',
-        srsLevel: 0,
-        nextReviewDate: nowIso,
-        isCuratedPuzzle: true,
-      });
-    }
-  }
-
-  return result.slice(0, limit);
+  const due = (p:TrainingPosition) => !p.nextReviewDate || p.nextReviewDate <= new Date().toISOString();
+  const matches = (p:TrainingPosition) => !category || p.category === category;
+  const personal = queue.filter(p=>!p.isCuratedPuzzle && matches(p) && due(p));
+  const existing = queue.filter(p=>p.isCuratedPuzzle && matches(p) && due(p));
+  const fresh = TRAINING_PUZZLES.filter(p=>(!category || p.category === category) && !queue.some(q=>q.id === p.id)).map(curatedPosition);
+  const choices = source === 'errors' && !category ? personal : [...personal, ...existing, ...fresh];
+  const result = choices.slice(0,limit);
+  for (const pos of result) if (!queue.some(q=>q.id===pos.id)) queue.push(pos);
+  saveTrainingQueue(queue);
+  return result;
 }
